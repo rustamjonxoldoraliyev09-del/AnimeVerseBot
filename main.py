@@ -5,7 +5,7 @@ from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAHPbRBghrn43pqK5JC_jh5BSSl4WnAu7Mw"  
+TOKEN = "8806794822:AAE9mE2bIiBsoNoUqYZzRIBOsFZH4EgrnMc"  
 KANAL_ID = "@an1verseuz"  
 ADMIN_ID = 8370334471  
 
@@ -72,13 +72,15 @@ def start_command(message):
     add_user(user_id) # Foydalanuvchini bazaga saqlash
     
     start_args = message.text.split()
-    if len(start_args) > 1 and start_args.startswith("anime"):
-        anime_id = start_args.replace("anime", "")
-        if check_sub(user_id):
-            show_episodes_by_id(message.chat.id, anime_id)
-            return
-            
-    start_text = (
+    if len(start_args) > 1:
+        param = start_args[1]
+        if param.startswith("anime"):
+            anime_id = param.replace("anime", "")
+            if check_sub(user_id):
+
+         show_episodes_by_id(message.chat.id, anime_id)
+                return       
+start_text = (
         "Assalomu alaykum bizning botimizga xush kelibsiz!!! "
         "Tomosha qilish uchun anime nomini yoki kodini yozing... ✔️\n\n"
         "Murojat va takliflar uchun:\n\n"
@@ -128,7 +130,6 @@ def admin_send_reclaim(message):
     with open(USERS_FILE, "r") as f:
         users = f.read().splitlines()
 
-    # Agar admin biror rasm/videoga javob (reply) qibly /send yozgan bo'lsa
     if message.reply_to_message:
         msg_to_forward = message.reply_to_message
         success = 0
@@ -142,7 +143,6 @@ def admin_send_reclaim(message):
         bot.send_message(message.chat.id, f"✅ Reklama tarqatish yakunlandi!\n🎯 Yetkazildi: {success}/{len(users)}")
         return
 
-    # Agar shunchaki matn yozilgan bo'lsa (/send Salom)
     args = message.text.split(maxsplit=1)
     if len(args) < 2:
         bot.reply_to(message, "⚠️ Reklama matnini ham yozing. Masalan:\n`/send Bugun yangi anime chiqadi!`", parse_mode="Markdown")
@@ -178,6 +178,7 @@ def admin_add_anime_to_channel(message):
     if message.from_user.id != ADMIN_ID:
         return
     args = message.text.split()
+
     if len(args) < 2:
         bot.reply_to(message, "⚠️ Iltimos, anime kodini ham kiriting. Masalan: `/addanime 1`")
         return
@@ -208,7 +209,7 @@ def handle_admin_photo(message):
         file_id = message.photo[-1].file_id
         bot.reply_to(message, f"📸 **Rasm File ID:**\n`{file_id}`", parse_mode="Markdown")
 
-# ADMIN VIDEO YUBORGANIDA (YOKI KANALDDAN UZATSA) FILE_ID ANIQLASH
+# ADMIN VIDEO YUBORGANIDA FILE_ID ANIQLASH
 @bot.message_handler(content_types=['video'])
 def handle_admin_video(message):
     if message.from_user.id == ADMIN_ID:
@@ -219,19 +220,53 @@ def handle_admin_video(message):
             "📌 Buni nusxalab, anime qismlari (`episodes_links`) ichiga yozib qo'ying."
         )
         bot.reply_to(message, response_text, parse_mode="Markdown")
+        # Anime kartasini chiroyli chiqarish uchun yordamchi funksiya
+def send_anime_card(user_id, anime):
+    anime_caption = (
+        f"🎬 **Nomi:** {anime['title']}\n\n"
+        f"🥷 **Qismi:** 0/{anime['episodes_count']}\n"
+        f"🌍 **Davlati:** {anime['country']}\n"
+        f"🎞 **Tili:** {anime['language']}\n"
+        f"📅 **Yili:** {anime['year']}\n"
+        f"🎭 **Janri:** {anime['genre']}\n\n"
+        f"🔍 **Qidirishlar soni:** {anime['views']}\n\n"
+        f"🍿 {anime['channel_link']}"
+    )
+    inline_markup = types.InlineKeyboardMarkup()
+    btn_download = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", callback_data=f"open_episodes_{anime['id']}")
+    inline_markup.add(btn_download)
+    try:
+        bot.send_photo(user_id, photo=anime["photo"], caption=anime_caption, parse_mode="Markdown", reply_markup=inline_markup)
+    except Exception:
+        bot.send_message(user_id, anime_caption, parse_mode="Markdown", reply_markup=inline_markup)
 
-# Qidiruv xabarlarini qayta ishlash
+# Qidiruv xabarlarini va shunchaki kod yuborilgandagi holatni qayta ishlash
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
     user_id = message.from_user.id
-    add_user(user_id) # Har qanday xabarda ham bazaga tekshirib qo'shadi
+    add_user(user_id)
     
     if not check_sub(user_id):
         bot.send_message(user_id, "🛑 Kanalga a'zolikdan chiqib ketgansiz! Qayta start bosing: /start")
         return
+        
     if message.text == "🔍 Anime qidirish":
+        
         msg = bot.send_message(user_id, "⌨️ Qidirayotgan animeyingizning **kodini** yoki **nomini** kiriting:")
         bot.register_next_step_handler(msg, process_anime_search)
+        return
+            # 🔥 SHUNCHAKI KOD YOKI NOM YOZILSA ISHLAYDIGAN QISM
+    search_query = message.text.strip().lower()
+    found_anime = None
+    for key, anime in ANIME_DATABASE.items():
+        if search_query == anime["id"] or search_query in anime["title"].lower():
+            found_anime = anime
+            break
+            
+    if found_anime:
+        send_anime_card(user_id, found_anime)
+    else:
+        bot.send_message(user_id, "❌ Bunday anime topilmadi. Kod yoki nomni qayta tekshiring.")
 
 def process_anime_search(message):
     user_id = message.from_user.id
@@ -242,20 +277,7 @@ def process_anime_search(message):
             found_anime = anime
             break
     if found_anime:
-        anime_caption = (
-            f"🎬 **Nomi:** {found_anime['title']}\n\n"
-            f"🥷 **Qismi:** 0/{found_anime['episodes_count']}\n"
-            f"🌍 **Davlati:** {found_anime['country']}\n"
-            f"🎞 **Tili:** {found_anime['language']}\n"
-            f"📅 **Yili:** {found_anime['year']}\n"
-            f"🎭 **Janri:** {found_anime['genre']}\n\n"
-            f"🔍 **Qidirishlar soni:** {found_anime['views']}\n\n"
-            f"🍿 {found_anime['channel_link']}"
-        )
-        inline_markup = types.InlineKeyboardMarkup()
-        btn_download = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", callback_data=f"open_episodes_{found_anime['id']}")
-        inline_markup.add(btn_download)
-        bot.send_photo(user_id, photo=found_anime["photo"], caption=anime_caption, parse_mode="Markdown", reply_markup=inline_markup)
+        send_anime_card(user_id, found_anime)
     else:
         bot.send_message(user_id, "❌ Bunday anime topilmadi.")
 
@@ -269,8 +291,7 @@ def show_episodes_by_id(chat_id, anime_id):
             buttons.append(btn)
         markup.add(*buttons)
         bot.send_message(chat_id, f"🎬 **{anime['title']}** - Qismlarni tanlang:", reply_markup=markup, parse_mode="Markdown")
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("open_episodes_"))
+        @bot.callback_query_handler(func=lambda call: call.data.startswith("open_episodes_"))
 def callback_open_episodes(call):
     anime_id = call.data.replace("open_episodes_", "")
     show_episodes_by_id(call.message.chat.id, anime_id)
@@ -290,12 +311,16 @@ def callback_get_episode(call):
             if video_file_id.startswith("http"):
                 bot.send_message(call.message.chat.id, f"🍿 **{anime['title']}** — {ep_num}-qism havolasi:\n🔗 {video_file_id}")
             else:
-                bot.send_chat_action(call.message.chat.id, 'upload_video')
-                bot.send_video(
-                    chat_id=call.message.chat.id, 
-                    video=video_file_id, 
-                    caption=f"🍿 **{anime['title']}** — {ep_num}-qism\n\n🤖 @{bot.get_me().username} boti orqali yuklab olindi."
-                )
+                try:
+                    bot.send_chat_action(call.message.chat.id, 'upload_video')
+                    bot.send_video(
+                        chat_id=call.message.chat.id, 
+                        video=video_file_id, 
+                        caption=f"🍿 **{anime['title']}** — {ep_num}-qism\n\n🤖 @{bot.get_me().username} boti orqali yuklab olindi."
+                    )
+                except Exception as e:
+                    bot.answer_callback_query(call.id, "❌ Telegram orqali videoni yuklashda xatolik yuz berdi.", show_alert=True)
+                    print(f"Video yuborish xatoligi: {e}")
         else:
             bot.answer_callback_query(call.id, "❌ Bu qism hali yuklanmagan!", show_alert=True)
 
