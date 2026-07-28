@@ -42,7 +42,7 @@ ANIME_DATABASE = {
     "1": {
         "id": "1",
         "title": "Solo Leveling (1-fasl)",
-        "photo": "AgACAgIAAxkBAAM1Zp...", 
+        "photo": "AgACAgIAAxkBAAIBaWpow4-c4gkDO1klnf6GmBbU8NcJAAIeIWsbri9JSw2BpRs3hVouAQADAgADeAADPQQ", 
         "episodes_count": 12,
         "country": "Yaponiya",
         "language": "O'ZBEK tilida",
