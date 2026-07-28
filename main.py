@@ -172,6 +172,49 @@ def admin_add_episode(message):
         bot.reply_to(message, f"✅ Kod {anime_code}: {ep_num}-qism bazaga saqlandi!")
     except Exception as e:
         bot.reply_to(message, f"❌ Xato! Format: `/addep 101 1` (Xatolik: {e})")
+        # ----------------- ADMIN REJIMIDA YANGI ANIME QO'SHISH -----------------
+@bot.message_handler(commands=['addanime_db'])
+def admin_add_new_anime_to_db(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        # Agar rasmga reply qilinmagan bo'lsa, xabarning o'zida rasm bormi tekshiradi
+        if not message.photo:
+            bot.reply_to(message, "⚠️ Xato: Avval anime rasmiga reply qiling yoki rasmni o'zi bilan yuboring!")
+            return
+    
+    try:
+        # Ma'lumotlarni ajratib olish
+        text_data = message.text.replace("/addanime_db ", "")
+        parts = [p.strip() for p in text_data.split("|")]
+        
+        code = parts[0]
+        title = parts[1]
+        ep_count = int(parts[2])
+        country = parts[3]
+        lang = parts[4]
+        year = parts[5]
+        genre = parts[6]
+        views = parts[7]
+        ch_link = parts[8]
+        # Agar qo'shimcha tarif bo'lsa qo'shadi
+        desc = parts[9] if len(parts) > 9 else ""
+        
+        # Rasm ID sini olish
+        photo_id = message.reply_to_message.photo[-1].file_id if message.reply_to_message else message.photo[-1].file_id
+        
+        conn = sqlite3.connect("anime_bot.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO animes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (code, title, photo_id, ep_count, country, lang, year, genre, views, ch_link))
+        conn.commit()
+        conn.close()
+        
+        bot.reply_to(message, f"✅ {title} (Kod: {code}) bazaga muvaffaqiyatli qo'shildi!")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Xato! Formatni tekshiring. Xatolik: {e}")
+    
 
 # ----------------- QIDIRUV VA XABARLARNI QABUL QILISH -----------------
 @bot.message_handler(func=lambda message: True)
