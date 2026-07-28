@@ -6,7 +6,7 @@ from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAG752euN-5UYhfJx44wgQgL0n6-4kXNZlw"  # Bot tokeningiz
+TOKEN = "8806794822:AAEsGwDn7wcZwbRwxHPWqAfAxsqpJQ4zQxI"  # Bot tokeningiz
 KANAL_ID = "@an1verseuz"  # Majburiy obuna kanali
 ADMIN_ID = 8370334471  # Admin ID raqamingiz
 
