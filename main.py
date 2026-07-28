@@ -5,7 +5,7 @@ from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAH6H3nDSpwa9bCG71RQDVMZw9eAm_Wl-TM"  # @BotFather'dan olgan tokeningizni faqat shu yerga yozasiz!
+TOKEN = "8806794822:AAHPbRBghrn43pqK5JC_jh5BSSl4WnAu7Mw"  # @BotFather bergan tokenni faqat shu yerga yozing!
 KANAL_ID = "@an1verseuz"  # Sizning kanalingiz
 ADMIN_ID = 8370334471  # Sizning shaxsiy Telegram ID raqamingiz
 
@@ -17,7 +17,8 @@ ANIME_DATABASE = {
     "101": {
         "id": "101",
         "title": "Shilliq sifatida qayta tug'ilganim haqida (1-fasl)",
-        "photo": "https://media-amazon.com",
+        # MUAMMONI HAL QILISH UCHUN BUYERGA TELEGRAM RASM LINKINI QO'YDIK:
+        "photo": "https://telegra.ph", 
         "episodes_count": 24,
         "country": "Yaponiya",
         "language": "O'ZBEK kino",
@@ -26,7 +27,7 @@ ANIME_DATABASE = {
         "views": "17366",
         "channel_link": "@an1verseuz",
         "episodes_links": {
-            1: "https://t.me", # Test uchun o'zingizni kanal havolasi
+            1: "https://t.me", 
             2: "https://t.me",
         }
     }
@@ -212,4 +213,3 @@ if __name__ == "__main__":
     keep_alive()
     print("Bot serverda muvaffaqiyatli yurdi!")
     bot.infinity_polling()
-      
