@@ -5,29 +5,44 @@ from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAHPbRBghrn43pqK5JC_jh5BSSl4WnAu7Mw"  # @BotFather bergan tokenni faqat shu yerga yozing!
+TOKEN="8806794822:AAHPbRBghrn43pqK5JC_jh5BSSl4WnAu7Mw"  # O'zingizning haqiqiy bot tokeningizni shu yerda qoldiring!
 KANAL_ID = "@an1verseuz"  # Sizning kanalingiz
 ADMIN_ID = 8370334471  # Sizning shaxsiy Telegram ID raqamingiz
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
 
-# ----------------- ANIME MA'LUMOTLAR BAZASI -----------------
+# ----------------- TARTIBLANGAN ANIME MA'LUMOTLAR BAZASI -----------------
 ANIME_DATABASE = {
-    "101": {
-        "id": "101",
-        "title": "Shilliq sifatida qayta tug'ilganim haqida (1-fasl)",
-        # MUAMMONI HAL QILISH UCHUN BUYERGA TELEGRAM RASM LINKINI QO'YDIK:
-        "photo": "https://telegra.ph", 
-        "episodes_count": 24,
+    "1": {
+        "id": "1",
+        "title": "Solo Leveling (1-fasl)",
+        "photo": "https://telegra.ph",
+        "episodes_count": 12,
         "country": "Yaponiya",
-        "language": "O'ZBEK kino",
-        "year": "2018",
-        "genre": "Ekshn, Komediya, Fentezi, O'zga Dunyo",
-        "views": "17366",
+        "language": "O'ZBEK tilida",
+        "year": "2024",
+        "genre": "Ekshn, Sarguzasht, Fentezi",
+        "views": "1420",
         "channel_link": "@an1verseuz",
         "episodes_links": {
-            1: "https://t.me", 
+            1: "https://t.me",
+            2: "https://t.me",
+        }
+    },
+    "2": {
+        "id": "2",
+        "title": "Demon Slayer / Kimetsu no Yaiba",
+        "photo": "https://telegra.ph",
+        "episodes_count": 26,
+        "country": "Yaponiya",
+        "language": "O'ZBEK tilida",
+        "year": "2019",
+        "genre": "Ekshn, Sarguzasht, Tarixiy",
+        "views": "3580",
+        "channel_link": "@an1verseuz",
+        "episodes_links": {
+            1: "https://t.me",
             2: "https://t.me",
         }
     }
@@ -47,17 +62,17 @@ def start_command(message):
     user_id = message.from_user.id
     
     start_args = message.text.split()
-    if len(start_args) > 1 and start_args[1].startswith("anime"):
-        anime_id = start_args[1].replace("anime", "")
+    if len(start_args) > 1 and start_args.startswith("anime"):
+        anime_id = start_args.replace("anime", "")
         if check_sub(user_id):
             show_episodes_by_id(message.chat.id, anime_id)
             return
             
     start_text = (
         "Assalomu alaykum bizning botimizga xush kelibsiz!!! "
-        "Tomosha qilish uchun Kodni... yozing... ✔️\n\n"
+        "Tomosha qilish uchun anime nomini yoki kodini... yozing... ✔️\n\n"
         "Murojat va takliflar uchun:\n\n"
-        "@Weko_neym✔️\n\n"
+        "@An1verseuzb✔️\n\n"
         "Botdan to'liq foydalanish uchun homiy kanalga azo bo'ling!! ✔️"
     )
     bot.send_message(user_id, start_text)
@@ -66,7 +81,7 @@ def start_command(message):
         show_search_menu(user_id)
     else:
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(text="O'zga dunyo animelar | Isekai", url=f"https://t.me{KANAL_ID.replace('@', '')}"))
+        markup.add(types.InlineKeyboardButton(text="An1Verse", url="tg://resolve?domain=an1verseuz"))
         markup.add(types.InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_subscription"))
         bot.send_message(user_id, "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:", reply_markup=markup)
 
@@ -84,13 +99,36 @@ def show_search_menu(user_id):
     markup.add(types.KeyboardButton("🔍 Anime qidirish"))
     bot.send_message(user_id, "Pastdagi tugmani bosib anime qidirishingiz mumkin 👇", reply_markup=markup)
 
-# Admin tomonidan kanalga chiroyli post yuborish (/addanime)
+# ----------------- ADMIN UCHUN ANIME RO'YXATI (/list) -----------------
+# Bu buyruqni faqat siz yozganingizda ishlaydi va hamma animelarni kodlari bilan chiqaradi
+@bot.message_handler(commands=['list'])
+def admin_anime_list(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+        
+    if not ANIME_DATABASE:
+        bot.reply_to(message, "📭 Hozircha bazada hech qanday anime yo'q.")
+        return
+        
+    list_text = "📋 **Bazada bor animelar va ularning kodlari:**\n\n"
+    for code, anime in ANIME_DATABASE.items():
+        list_text += f"🔑 **Kod:** `{code}` — 🎬 {anime['title']} ({anime['episodes_count']} qism)\n"
+        
+    list_text += "\n📌 Kanalga post qo'shish uchun: `/addanime [kod]`"
+    bot.send_message(message.chat.id, list_text, parse_mode="Markdown")
+
+# Admin tomonidan kanalga yangi post yuborish (/addanime [kod])
 @bot.message_handler(commands=['addanime'])
 def admin_add_anime_to_channel(message):
     if message.from_user.id != ADMIN_ID:
         return
         
-    anime_id = "101" 
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "⚠️ Iltimos, anime kodini ham kiriting. Masalan: `/addanime 1`", parse_mode="Markdown")
+        return
+        
+    anime_id = args
     if anime_id in ANIME_DATABASE:
         anime = ANIME_DATABASE[anime_id]
         bot_info = bot.get_me()
@@ -107,11 +145,13 @@ def admin_add_anime_to_channel(message):
         )
         
         channel_markup = types.InlineKeyboardMarkup()
-        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=f"https://t.me{bot_info.username}?start=anime{anime_id}")
+        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=f"tg://resolve?domain={bot_info.username}&start=anime{anime_id}")
         channel_markup.add(btn_go_bot)
         
         bot.send_photo(chat_id=KANAL_ID, photo=anime["photo"], caption=channel_caption, parse_mode="Markdown", reply_markup=channel_markup)
-        bot.reply_to(message, "✅ Post kanalingizga muvaffaqiyatli yuborildi!")
+        bot.reply_to(message, f"✅ Kod {anime_id} dagi anime kanalingizga muvaffaqiyatli yuborildi!")
+    else:
+        bot.reply_to(message, "❌ Bunday kodli anime bazada topilmadi!")
 
 # Qidiruv tizimi
 @bot.message_handler(func=lambda message: True)
@@ -152,7 +192,7 @@ def process_anime_search(message):
         
         bot.send_photo(user_id, photo=found_anime["photo"], caption=anime_caption, parse_mode="Markdown", reply_markup=inline_markup)
     else:
-        bot.send_message(user_id, "❌ Bunday anime topilmadi.")
+        bot.send_message(user_id, "❌ Bunday kod yoki nomli anime topilmadi. Qaytadan urinib ko'ring.")
 
 # Dinamik qismlar tugmalari paneli
 def show_episodes_by_id(chat_id, anime_id):
@@ -182,8 +222,8 @@ def open_episodes_callback(call):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("get_ep_"))
 def get_episode_file(call):
     data_parts = call.data.split("_")
-    anime_id = data_parts[2]
-    ep_num = int(data_parts[3])
+    anime_id = data_parts
+    ep_num = int(data_parts)
     
     if anime_id in ANIME_DATABASE:
         anime = ANIME_DATABASE[anime_id]
@@ -197,19 +237,6 @@ def get_episode_file(call):
 def close_panel_callback(call):
     bot.delete_message(call.message.chat.id, call.message.message_id)
 
-# ----------------- RENDER SERVERDA UMRBOD YOQIB QO'YISH QISMI -----------------
+# ----------------- FLASK WEB SERVER -----------------
 @app.route('/')
 def home():
-    return "Bot faol ishlamoqda!"
-
-def run():
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
-
-if __name__ == "__main__":
-    keep_alive()
-    print("Bot serverda muvaffaqiyatli yurdi!")
-    bot.infinity_polling()
