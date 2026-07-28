@@ -6,7 +6,7 @@ from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAH_PXjRnSyBBUOfTLqbSsZifzZNle1AFnk"  # Bot tokeningiz
+TOKEN = "8806794822:AAG752euN-5UYhfJx44wgQgL0n6-4kXNZlw"  # Bot tokeningiz
 KANAL_ID = "@an1verseuz"  # Majburiy obuna kanali
 ADMIN_ID = 8370334471  # Admin ID raqamingiz
 
@@ -92,7 +92,8 @@ def start_command(message):
         show_search_menu(user_id)
     else:
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(text="O'zga dunyo animelar | Isekai", url=f"https://t.me{KANAL_ID.replace('@', '')}"))
+        username_clean = KANAL_ID.replace('@', '')
+        markup.add(types.InlineKeyboardButton(text="An1Verse", url=f"tg://resolve?domain={username_clean}"))
         markup.add(types.InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_subscription"))
         bot.send_message(user_id, "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:", reply_markup=markup)
 
@@ -141,7 +142,9 @@ def admin_add_anime_to_channel(message):
         )
         
         channel_markup = types.InlineKeyboardMarkup()
-        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=f"https://t.me{bot_info.username}?start=anime{anime_id}")
+        bot_link = f"https://t.me{bot_info.username}?start=anime{anime_id}"
+        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=bot_link)
+        
         channel_markup.add(btn_go_bot)
         
         bot.send_photo(chat_id=KANAL_ID, photo=anime[2], caption=channel_caption, parse_mode="Markdown", reply_markup=channel_markup)
