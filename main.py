@@ -1,61 +1,70 @@
 import os
+import sqlite3
 import telebot
 from telebot import types
 from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAE9mE2bIiBsoNoUqYZzRIBOsFZH4EgrnMc"  
-KANAL_ID = "@an1verseuz"  
-ADMIN_ID = 8370334471  
+TOKEN = "8806794822:AAFpEogBBbMylV1FRLZO5MdgkQ4QJtJHC_c"  # Bot tokeningiz
+KANAL_ID = "@an1verseuz"  # Majburiy obuna kanali
+ADMIN_ID = 8370334471  # Admin ID raqamingiz
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
 
-# Foydalanuvchilar bazasi fayli
-USERS_FILE = "users.txt"
-
-def add_user(user_id):
-    """Foydalanuvchini bazaga qo'shish"""
-    user_id = str(user_id)
-    if not os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "w") as f:
-            f.write(user_id + "\n")
-        return
+# ----------------- MA'LUMOTLAR OMBORI (DATABASE) -----------------
+def init_db():
+    conn = sqlite3.connect("anime_bot.db")
+    cursor = conn.cursor()
+    # Animelar jadvali
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS animes (
+        code TEXT PRIMARY KEY,
+        title TEXT,
+        photo TEXT,
+        episodes_count INTEGER,
+        country TEXT,
+        language TEXT,
+        year TEXT,
+        genre TEXT,
+        views TEXT,
+        channel_link TEXT
+    )""")
+    # Qismlar (videolar) jadvali
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS episodes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        anime_code TEXT,
+        episode_number INTEGER,
+        video_id TEXT
+    )""")
     
-    with open(USERS_FILE, "r") as f:
-        users = f.read().splitlines()
-        
-    if user_id not in users:
-        with open(USERS_FILE, "a") as f:
-            f.write(user_id + "\n")
+    # SIZ SO'RAGAN 101 KODLI ANIMENI TEST UCHUN AVTOMATIK BAZAGA QO'SHISH
+    cursor.execute("SELECT code FROM animes WHERE code='101'")
+    if not cursor.fetchone():
+        cursor.execute("""
+        INSERT INTO animes VALUES (
+            '101', "Shilliq sifatida qayta tug'ilganim haqida (1-fasl)", 
+            'https://justwatch.com', 
+            24, 'Yaponiya', "O'ZBEK tilida", '2018', "Ekshn, Komediya, Fentezi, O'zga Dunyo", '17366', '@an1verseuz'
+        )""")
+    conn.commit()
+    conn.close()
 
-def get_users_count():
-    """Jami foydalanuvchilar sonini olish"""
-    if not os.path.exists(USERS_FILE):
-        return 0
-    with open(USERS_FILE, "r") as f:
-        return len(f.read().splitlines())
-
-# ----------------- TARTIBLANGAN ANIME MA'LUMOTLAR BAZASI -----------------
-ANIME_DATABASE = {
-    "1": {
-        "id": "1",
-        "title": "Solo Leveling (1-fasl)",
-        "photo": "AgACAgIAAxkBAAIBaWpow4-c4gkDO1klnf6GmBbU8NcJAAIeIWsbri9JSw2BpRs3hVouAQADAgADeAADPQQ", 
-        "episodes_count": 12,
-        "country": "Yaponiya",
-        "language": "O'ZBEK tilida",
-        "year": "2024",
-        "genre": "Ekshn, Sarguzasht, Fentezi",
-        "views": "1420",
-        "channel_link": "@an1verseuz",
-        "episodes_links": {
-            1: "BAACAgIAAxkBAAM5Zp...Solo_Leveling_1_Qism_Video_Kodi", 
-            2: "BAACAgIAAxkBAAM6Zp...Solo_Leveling_2_Qism_Video_Kodi",
-        }
-    }
-}
+# ----------------- INLINE TUGMALAR GENERATORI -----------------
+# 3-rasmdagi kabi har qatorda 5 tadan qism tugmalarini chiqarish
+def get_episodes_grid(anime_code, total_episodes):
+    markup = types.InlineKeyboardMarkup()
+    row = []
+    for i in range(1, total_episodes + 1):
+        row.append(types.InlineKeyboardButton(text=str(i), callback_data=f"ep_{anime_code}_{i}"))
+        if len(row) == 5:
+            markup.row(*row)
+            row = []
+    if row:
+        markup.row(*row)
+    return markup
 
 # Majburiy obunani tekshirish
 def check_sub(user_id):
@@ -69,20 +78,10 @@ def check_sub(user_id):
 @bot.message_handler(commands=['start'])
 def start_command(message):
     user_id = message.from_user.id
-    add_user(user_id) # Foydalanuvchini bazaga saqlash
     
-    start_args = message.text.split()
-    if len(start_args) > 1:
-        param = start_args[1]
-        if param.startswith("anime"):
-            anime_id = param.replace("anime", "")
-            if check_sub(user_id):
-
-         show_episodes_by_id(message.chat.id, anime_id)
-                return       
-start_text = (
+    start_text = (
         "Assalomu alaykum bizning botimizga xush kelibsiz!!! "
-        "Tomosha qilish uchun anime nomini yoki kodini yozing... ✔️\n\n"
+        "Tomosha qilish uchun Kodni... yozing... ✔️\n\n"
         "Murojat va takliflar uchun:\n\n"
         "@An1verseuzb✔️\n\n"
         "Botdan to'liq foydalanish uchun homiy kanalga azo bo'ling!! ✔️"
@@ -93,7 +92,7 @@ start_text = (
         show_search_menu(user_id)
     else:
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(text="An1Verse", url="tg://resolve?domain=an1verseuz"))
+        markup.add(types.InlineKeyboardButton(text="O'zga dunyo animelar | Isekai", url=f"https://t.me{KANAL_ID.replace('@', '')}"))
         markup.add(types.InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_subscription"))
         bot.send_message(user_id, "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:", reply_markup=markup)
 
@@ -106,224 +105,140 @@ def check_callback(call):
     else:
         bot.answer_callback_query(call.id, "❌ Siz hali kanalga a'zo bo'lmadingiz!", show_alert=True)
 
+
 def show_search_menu(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("🔍 Anime qidirish"))
     bot.send_message(user_id, "Pastdagi tugmani bosib anime qidirishingiz mumkin 👇", reply_markup=markup)
 
-# 📊 ADMIN UCHUN STATISTIKA FUNKSIYASI
-@bot.message_handler(commands=['stat'])
-def admin_stat(message):
-    if message.from_user.id == ADMIN_ID:
-        count = get_users_count()
-        bot.reply_to(message, f"📊 **Bot statistikasi:**\n\n👥 Jami a'zolar soni: `{count}` ta", parse_mode="Markdown")
-# 📢 ADMIN UCHUN REKLAMA/XABAR TARQATISH FUNKSIYASI
-@bot.message_handler(commands=['send'])
-def admin_send_reclaim(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-        
-    if not os.path.exists(USERS_FILE):
-        bot.reply_to(message, "❌ Foydalanuvchilar bazasi bo'sh!")
-        return
-
-    with open(USERS_FILE, "r") as f:
-        users = f.read().splitlines()
-
-    if message.reply_to_message:
-        msg_to_forward = message.reply_to_message
-        success = 0
-        bot.reply_to(message, f"⏳ {len(users)} ta foydalanuvchiga reklama tarqatilmoqda...")
-        for u_id in users:
-            try:
-                bot.copy_message(chat_id=u_id, from_chat_id=message.chat.id, message_id=msg_to_forward.message_id)
-                success += 1
-            except Exception:
-                pass
-        bot.send_message(message.chat.id, f"✅ Reklama tarqatish yakunlandi!\n🎯 Yetkazildi: {success}/{len(users)}")
-        return
-
-    args = message.text.split(maxsplit=1)
-    if len(args) < 2:
-        bot.reply_to(message, "⚠️ Reklama matnini ham yozing. Masalan:\n`/send Bugun yangi anime chiqadi!`", parse_mode="Markdown")
-        return
-
-    text_to_send = args[1]
-    success = 0
-    bot.reply_to(message, f"⏳ {len(users)} ta foydalanuvchiga matn tarqatilmoqda...")
-    for u_id in users:
-        try:
-            bot.send_message(u_id, text_to_send)
-            success += 1
-        except Exception:
-            pass
-    bot.send_message(message.chat.id, f"✅ Matn muvaffaqiyatli yuborildi!\n🎯 Yetkazildi: {success}/{len(users)}")
-
-# Admin panel uchun /list komandasi
-@bot.message_handler(commands=['list'])
-def admin_anime_list(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    if not ANIME_DATABASE:
-        bot.reply_to(message, "📭 Hozircha bazada hech qanday anime yo'q.")
-        return
-    list_text = "📋 **Bazada bor animelar va ularning kodlari:**\n\n"
-    for code, anime in ANIME_DATABASE.items():
-        list_text += f"🔑 **Kod:** `{code}` — 🎬 {anime['title']} ({anime['episodes_count']} qism)\n"
-    bot.send_message(message.chat.id, list_text, parse_mode="Markdown")
-
-# Admin tomonidan kanalga post yuborish
+# Admin tomonidan kanalga chiroyli post yuborish (/addanime)
 @bot.message_handler(commands=['addanime'])
 def admin_add_anime_to_channel(message):
     if message.from_user.id != ADMIN_ID:
         return
+        
+    # Konsoldan yoki xabardan kodni ajratib olish (Default: 101)
     args = message.text.split()
-
-    if len(args) < 2:
-        bot.reply_to(message, "⚠️ Iltimos, anime kodini ham kiriting. Masalan: `/addanime 1`")
-        return
-    anime_id = args[1]
-    if anime_id in ANIME_DATABASE:
-        anime = ANIME_DATABASE[anime_id]
+    anime_id = args[1] if len(args) > 1 else "101"
+    
+    conn = sqlite3.connect("anime_bot.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM animes WHERE code=?", (anime_id,))
+    anime = cursor.fetchone()
+    conn.close()
+    
+    if anime:
         bot_info = bot.get_me()
         channel_caption = (
-            f"🎬 **Nomi:** {anime['title']}\n\n"
-            f"🥷 **Qismi:** 0/{anime['episodes_count']}\n"
-            f"🌍 **Davlati:** {anime['country']}\n"
-            f"🎞 **Tili:** {anime['language']}\n"
-            f"📅 **Yili:** {anime['year']}\n"
-            f"🎭 **Janri:** {anime['genre']}\n\n"
-            f"🔍 **Qidirishlar soni:** {anime['views']}\n\n"
-            f"🍿 {anime['channel_link']}"
+            f"🎬 **Nomi:** {anime[1]}\n\n"
+            f"🥷 **Qismi:** 24/{anime[3]}\n"
+            f"🌍 **Davlati:** {anime[4]}\n"
+            f"🎞 **Tili:** {anime[5]}\n"
+            f"📅 **Yili:** {anime[6]}\n"
+            f"🎭 **Janri:** {anime[7]}\n\n"
+            f"🔍 **Qidirishlar soni:** {anime[8]}\n\n"
+            f"🍿 {anime[9]}"
         )
+        
         channel_markup = types.InlineKeyboardMarkup()
-        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=f"tg://resolve?domain={bot_info.username}&start=anime{anime_id}")
+        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=f"https://t.me{bot_info.username}?start=anime{anime_id}")
         channel_markup.add(btn_go_bot)
-        bot.send_photo(chat_id=KANAL_ID, photo=anime["photo"], caption=channel_caption, parse_mode="Markdown", reply_markup=channel_markup)
-        bot.reply_to(message, f"✅ Kanalga yuborildi!")
+        
+        bot.send_photo(chat_id=KANAL_ID, photo=anime[2], caption=channel_caption, parse_mode="Markdown", reply_markup=channel_markup)
+        bot.reply_to(message, "✅ Post kanalingizga muvaffaqiyatli yuborildi!")
+    else:
+        bot.reply_to(message, f"❌ Kod {anime_id} bo'yicha anime bazada topilmadi!")
 
-# ADMIN RASM YUBORGANIDA FILE_ID ANIQLASH
-@bot.message_handler(content_types=['photo'])
-def handle_admin_photo(message):
-    if message.from_user.id == ADMIN_ID:
-        file_id = message.photo[-1].file_id
-        bot.reply_to(message, f"📸 **Rasm File ID:**\n`{file_id}`", parse_mode="Markdown")
-
-# ADMIN VIDEO YUBORGANIDA FILE_ID ANIQLASH
-@bot.message_handler(content_types=['video'])
-def handle_admin_video(message):
-    if message.from_user.id == ADMIN_ID:
-        video_id = message.video.file_id
-        response_text = (
-            "🎬 **Video File ID muvaffaqiyatli aniqlandi!**\n\n"
-            f"Kod:\n`{video_id}`\n\n"
-            "📌 Buni nusxalab, anime qismlari (`episodes_links`) ichiga yozib qo'ying."
-        )
-        bot.reply_to(message, response_text, parse_mode="Markdown")
-        # Anime kartasini chiroyli chiqarish uchun yordamchi funksiya
-def send_anime_card(user_id, anime):
-    anime_caption = (
-        f"🎬 **Nomi:** {anime['title']}\n\n"
-        f"🥷 **Qismi:** 0/{anime['episodes_count']}\n"
-        f"🌍 **Davlati:** {anime['country']}\n"
-        f"🎞 **Tili:** {anime['language']}\n"
-        f"📅 **Yili:** {anime['year']}\n"
-        f"🎭 **Janri:** {anime['genre']}\n\n"
-        f"🔍 **Qidirishlar soni:** {anime['views']}\n\n"
-        f"🍿 {anime['channel_link']}"
-    )
-    inline_markup = types.InlineKeyboardMarkup()
-    btn_download = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", callback_data=f"open_episodes_{anime['id']}")
-    inline_markup.add(btn_download)
+# ----------------- ADMIN REJIMIDA QISMLARNI QO'SHISHbuyrug'i -----------------
+# Videoni yuklab, unga reply (javob) qilib yozasiz: /addep [kino_kodi] [qism_raqami]
+@bot.message_handler(commands=['addep'])
+def admin_add_episode(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    if not message.reply_to_message or not message.reply_to_message.video:
+        bot.reply_to(message, "⚠️ Xato: Avval videoga reply qilib, keyin buyruqni yozing!")
+        return
     try:
-        bot.send_photo(user_id, photo=anime["photo"], caption=anime_caption, parse_mode="Markdown", reply_markup=inline_markup)
-    except Exception:
-        bot.send_message(user_id, anime_caption, parse_mode="Markdown", reply_markup=inline_markup)
+        args = message.text.replace("/addep ", "").split()
+        anime_code = args[0]
+        ep_num = int(args[1])
+        video_id = message.reply_to_message.video.file_id
+        
+        conn = sqlite3.connect("anime_bot.db")
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO episodes (anime_code, episode_number, video_id) VALUES (?, ?, ?)", (anime_code, ep_num, video_id))
+        conn.commit()
+        conn.close()
+        bot.reply_to(message, f"✅ Kod {anime_code}: {ep_num}-qism bazaga saqlandi!")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Xato! Format: `/addep 101 1` (Xatolik: {e})")
 
-# Qidiruv xabarlarini va shunchaki kod yuborilgandagi holatni qayta ishlash
+# ----------------- QIDIRUV VA XABARLARNI QABUL QILISH -----------------
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
     user_id = message.from_user.id
-    add_user(user_id)
-    
     if not check_sub(user_id):
         bot.send_message(user_id, "🛑 Kanalga a'zolikdan chiqib ketgansiz! Qayta start bosing: /start")
         return
-        
+
     if message.text == "🔍 Anime qidirish":
-        
-        msg = bot.send_message(user_id, "⌨️ Qidirayotgan animeyingizning **kodini** yoki **nomini** kiriting:")
-        bot.register_next_step_handler(msg, process_anime_search)
+        bot.send_message(user_id, "Anime kodini kiriting (Masalan: 101):")
         return
-            # 🔥 SHUNCHAKI KOD YOKI NOM YOZILSA ISHLAYDIGAN QISM
-    search_query = message.text.strip().lower()
-    found_anime = None
-    for key, anime in ANIME_DATABASE.items():
-        if search_query == anime["id"] or search_query in anime["title"].lower():
-            found_anime = anime
-            break
-            
-    if found_anime:
-        send_anime_card(user_id, found_anime)
-    else:
-        bot.send_message(user_id, "❌ Bunday anime topilmadi. Kod yoki nomni qayta tekshiring.")
-
-def process_anime_search(message):
-    user_id = message.from_user.id
-    search_query = message.text.strip().lower()
-    found_anime = None
-    for key, anime in ANIME_DATABASE.items():
-        if search_query == anime["id"] or search_query in anime["title"].lower():
-            found_anime = anime
-            break
-    if found_anime:
-        send_anime_card(user_id, found_anime)
-    else:
-        bot.send_message(user_id, "❌ Bunday anime topilmadi.")
-
-def show_episodes_by_id(chat_id, anime_id):
-    if anime_id in ANIME_DATABASE:
-        anime = ANIME_DATABASE[anime_id]
-        markup = types.InlineKeyboardMarkup(row_width=5)
-        buttons = []
-        for i in range(1, anime["episodes_count"] + 1):
-            btn = types.InlineKeyboardButton(text=str(i), callback_data=f"get_ep_{anime_id}_{i}")
-            buttons.append(btn)
-        markup.add(*buttons)
-        bot.send_message(chat_id, f"🎬 **{anime['title']}** - Qismlarni tanlang:", reply_markup=markup, parse_mode="Markdown")
-        @bot.callback_query_handler(func=lambda call: call.data.startswith("open_episodes_"))
-def callback_open_episodes(call):
-    anime_id = call.data.replace("open_episodes_", "")
-    show_episodes_by_id(call.message.chat.id, anime_id)
-
-# FOYDALANUVCHIGA VIDEONI TO'G'RIDAN-TO'G'RI FAYL SHAKLIDA YUBORISH QISMI
-@bot.callback_query_handler(func=lambda call: call.data.startswith("get_ep_"))
-def callback_get_episode(call):
-    data_parts = call.data.split("_")
-    anime_id = data_parts[2]
-    ep_num = int(data_parts[3])
+        
+    # Kod kiritilganda ishlaydigan qidiruv tizimi (2-rasmdagidek chiqadi)
+    code = message.text.strip()
+    conn = sqlite3.connect("anime_bot.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM animes WHERE code=?", (code,))
+    anime = cursor.fetchone()
+    conn.close()
     
-    if anime_id in ANIME_DATABASE:
-        anime = ANIME_DATABASE[anime_id]
-        if ep_num in anime["episodes_links"]:
-            video_file_id = anime["episodes_links"][ep_num]
-            
-            if video_file_id.startswith("http"):
-                bot.send_message(call.message.chat.id, f"🍿 **{anime['title']}** — {ep_num}-qism havolasi:\n🔗 {video_file_id}")
-            else:
-                try:
-                    bot.send_chat_action(call.message.chat.id, 'upload_video')
-                    bot.send_video(
-                        chat_id=call.message.chat.id, 
-                        video=video_file_id, 
-                        caption=f"🍿 **{anime['title']}** — {ep_num}-qism\n\n🤖 @{bot.get_me().username} boti orqali yuklab olindi."
-                    )
-                except Exception as e:
-                    bot.answer_callback_query(call.id, "❌ Telegram orqali videoni yuklashda xatolik yuz berdi.", show_alert=True)
-                    print(f"Video yuborish xatoligi: {e}")
-        else:
-            bot.answer_callback_query(call.id, "❌ Bu qism hali yuklanmagan!", show_alert=True)
+    if anime:
+        caption = (
+            f"🎬 **Nomi:** {anime[1]}\n\n"
+            f"🥷 **Qismi:** 24/{anime[3]}\n"
+            f"🌍 **Davlati:** {anime[4]}\n"
+            f"🎞 **Tili:** {anime[5]}\n"
+            f"📅 **Yili:** {anime[6]}\n"
+            f"🎭 **Janri:** {anime[7]}\n\n"
+            f"🔍 **Qidirishlar soni:** {anime[8]}\n\n"
+            f"🍿 {anime[9]}"
+        )
+        # Pastiga 3-rasmdagi kabi setka inline klaviatura qo'shamiz
+        markup = get_episodes_grid(code, anime[3])
+        bot.send_photo(chat_id=user_id, photo=anime[2], caption=caption, parse_mode="Markdown", reply_markup=markup)
+    else:
+        bot.send_message(user_id, "❌ Bunday kodli anime topilmadi. Qayta urinib ko'ring.")
+
+# ----------------- TUGMA BOSILGANDA VIDEONI YUBORISH -----------------
+@bot.callback_query_handler(func=lambda call: call.data.startswith("ep_"))
+def send_episode_callback(call):
+    _, anime_code, ep_num = call.data.split("_")
+    
+    conn = sqlite3.connect("anime_bot.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT video_id FROM episodes WHERE anime_code=? AND episode_number=?", (anime_code, int(ep_num)))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        # Videoni foydalanuvchiga yuborish (3-rasmdagidek)
+        bot.send_video(chat_id=call.message.chat.id, video=row[0], caption=f"{ep_num}-qism")
+    else:
+        bot.answer_callback_query(call.id, "⚠️ Bu qism videosi hali serverga yuklanmagan!", show_alert=True)
+    bot.answer_callback_query(call.id)
+
+# ----------------- FLASK & RUN -----------------
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
 
 if __name__ == "__main__":
+    init_db()  # Bazani tekshirish va yaratish
+    t = Thread(target=run)
+    t.start()
     print("Bot muvaffaqiyatli ishga tushdi...")
     bot.infinity_polling()
