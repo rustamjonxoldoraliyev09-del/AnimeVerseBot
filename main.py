@@ -7,7 +7,7 @@ from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAFpEogBBbMylV1FRLZO5MdgkQ4QJtJHC_c"
+TOKEN = "8806794822:AAGKlVLI0NrjePyzCBNIfvag1Gz5WsRO-fk"
 KANAL_ID = "@an1verseuz"
 ADMIN_ID = 8370334471
 
