@@ -2,4 +2,3 @@ pyTelegramBotAPI
 pymongo[srv]
 Flask
 gunicorn
-from pymongo import MongoClient
