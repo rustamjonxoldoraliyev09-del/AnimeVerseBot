@@ -7,7 +7,7 @@ import pymongo
 
 # ----------------- SOZLAMALAR -----------------
 TOKEN = os.getenv("TOKEN", "8806794822:AAEqEAUPW6d_R2NPQ2R67tEUS4R1hLuRszA")
-MONGO_URI = os.getenv("MONGO_URI") 
+MONGO_URI = os.getenv("mongodb+srv://rustamjonxoldoraliyev09_db_user:qwertuypoi98@clunster0.n0daf0n.mongodb.net/?retryWrites=true&w=majority&appName=Clunster0") 
 KANAL_ID = "@an1verseuz"
 ADMIN_ID = 8370334471
 
