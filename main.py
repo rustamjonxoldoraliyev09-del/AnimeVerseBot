@@ -1,66 +1,66 @@
 import os
-import time
-import sqlite3
 import telebot
 from telebot import types
 from flask import Flask
 from threading import Thread
+import pymongo
 
-# ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAEqEAUPW6d_R2NPQ2R67tEUS4R1hLuRszA"
+# ----------------- SOZLAMALAR -----------------
+TOKEN = os.getenv("TOKEN", "8806794822:AAEqEAUPW6d_R2NPQ2R67tEUS4R1hLuRszA")
+MONGO_URI = os.getenv("MONGO_URI") 
 KANAL_ID = "@an1verseuz"
 ADMIN_ID = 8370334471
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
 
-# ----------------- MA'LUMOTLAR OMBORI (SQLITE) -----------------
-def init_db():
-    conn = sqlite3.connect("anime_bot.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS animes (
-        code TEXT PRIMARY KEY,
-        title TEXT,
-        photo TEXT,
-        episodes_count INTEGER,
-        country TEXT,
-        language TEXT,
-        year TEXT,
-        genre TEXT,
-        views TEXT,
-        channel_link TEXT
-    )""")
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS episodes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        anime_code TEXT,
-        episode_number INTEGER,
-        video_id TEXT
-    )""")
-    cursor.execute("SELECT code FROM animes WHERE code='101'")
-    if not cursor.fetchone():
-        cursor.execute("""
-        INSERT INTO animes VALUES (
-            '101', "Shilliq sifatida qayta tug'ilganim haqida (1-fasl)", 
-            'https://justwatch.com', 
-            24, 'Yaponiya', "O'ZBEK tilida", '2018', "Ekshn, Komediya, Fentezi, O'zga Dunyo", '17366', '@an1verseuz'
-        )""")
-    conn.commit()
-    conn.close()
+# ----------------- MONGODB ULANISH -----------------
+client = None
+db = None
 
-def get_episodes_grid(anime_code, total_episodes):
-    markup = types.InlineKeyboardMarkup()
-    row_buttons = []
-    num_episodes = int(total_episodes)
-    for i in range(1, num_episodes + 1):
-        row_buttons.append(types.InlineKeyboardButton(text=str(i), callback_data=f"ep_{anime_code}_{i}"))
-        if len(row_buttons) == 5:
-            markup.row(*row_buttons)
-            row_buttons = []
-    if row_buttons:
-        markup.row(*row_buttons)
-    return markup
+try:
+    if MONGO_URI:
+        client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        db = client['anime_bot_db']
+        print("✅ MongoDB bazasiga muvaffaqiyatli ulandi!")
+    else:
+        print("⚠️ DIQQAT: MONGO_URI kiritilmagan! Bot bazasiz ishlamaydi.")
+except Exception as e:
+    print(f"❌ Bazaga ulanishda xatolik: {e}")
+
+# ----------------- YORDAMCHI FUNKSIYALAR -----------------
+
+def init_db():
+    """Bot ishlaganda avtomatik Test Anime va 1-qismni qo'shadi"""
+    if db is None: return
+
+    # 1. Animeni tekshiramiz va qo'shamiz
+    animes = db['animes']
+    if animes.count_documents({'code': '101'}) == 0:
+        animes.insert_one({
+            'code': '101',
+            'title': "Test Anime: Shilliq (Namuna)",
+            'photo': 'https://assets.jalantikus.com/assets/cache/560/350/userfiles/2020/01/24/telsei-shitara-slime-datta-ken-a9163.jpg', 
+            'episodes_count': 12,
+            'country': 'Yaponiya',
+            'language': "O'ZBEK tilida",
+            'year': '2024',
+            'genre': "Test, Fantastika",
+            'views': 0,
+            'channel_link': '@an1verseuz'
+        })
+        print("ℹ️ Test Anime (101) bazaga qo'shildi.")
+
+    # 2. Shu animening 1-qismini ham qo'shamiz (Test uchun)
+    episodes = db['episodes']
+    if episodes.count_documents({'anime_code': '101', 'episode': 1}) == 0:
+        episodes.insert_one({
+            'anime_code': '101',
+            'episode': 1,
+            'file_id': 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4' # Test video link
+            # Eslatma: Real botda bu yerga Telegram file_id qo'yiladi
+        })
+        print("ℹ️ Test Qism (1-qism) bazaga qo'shildi.")
 
 def check_sub(user_id):
     try:
@@ -69,203 +69,142 @@ def check_sub(user_id):
     except Exception:
         return False
 
+def show_search_menu(user_id):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(types.KeyboardButton("🔍 Anime qidirish"))
+    bot.send_message(user_id, "Pastdagi tugmani bosib anime qidirishingiz mumkin 👇", reply_markup=markup)
+
 # ----------------- BOT BUYRUQLARI -----------------
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
     user_id = message.from_user.id
-    start_text = (
-        "Assalomu alaykum bizning botimizga xush kelibsiz!!!\n"
-        "Tomosha qilish uchun Kodni... yozing... ✔️\n\n"
-        "Murojat va takliflar uchun:\n\n@An1verseuzb✔️\n\n"
-        "Botdan to'liq foydalanish uchun homiy kanalga azo bo'ling!! ✔️"
-    )
-    bot.send_message(user_id, start_text)
+    init_db() # Har start bosilganda bazani tekshirib, yo'q narsalarni tiklaydi
+    
+    start_text = "Assalomu alaykum! Anime ko'rish uchun kodni yozing (Masalan: 101)"
     
     if check_sub(user_id):
+        bot.send_message(user_id, start_text)
         show_search_menu(user_id)
     else:
         markup = types.InlineKeyboardMarkup()
-        username_clean = KANAL_ID.replace('@', '')
-        markup.add(types.InlineKeyboardButton(text="An1Verse", url=f"tg://resolve?domain={username_clean}"))
-        markup.add(types.InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_subscription"))
-        bot.send_message(user_id, "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:", reply_markup=markup)
+        clean_username = KANAL_ID.replace('@', '')
+        markup.add(types.InlineKeyboardButton("A'zo bo'lish", url=f"https://t.me/{clean_username}"))
+        markup.add(types.InlineKeyboardButton("✅ Tekshirish", callback_data="check_subscription"))
+        bot.send_message(user_id, f"Botdan foydalanish uchun {KANAL_ID} kanaliga a'zo bo'ling!", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_subscription")
 def check_callback(call):
-    user_id = call.from_user.id
-    if check_sub(user_id):
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except Exception:
-            pass
-        show_search_menu(user_id)
+    if check_sub(call.from_user.id):
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        bot.answer_callback_query(call.id, "Obuna tasdiqlandi!")
+        show_search_menu(call.from_user.id)
     else:
-        bot.answer_callback_query(call.id, "❌ Siz hali kanalga a'zo bo'lmadingiz!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Hali a'zo bo'lmadingiz!", show_alert=True)
 
-def show_search_menu(user_id):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton("🔍 Anime qidirish"))
-    bot.send_message(user_id, "Pastdagi tugmani bosib anime qidirishingiz mumkin 👇", reply_markup=markup)
-@bot.message_handler(commands=['addanime'])
-def admin_add_anime_to_channel(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    text_content = message.text.replace("/addanime", "").strip()
-    anime_id = "101"
-    if text_content:
-        anime_id = text_content
-    
-    conn = sqlite3.connect("anime_bot.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT title, photo, episodes_count, country, language, year, genre, views, channel_link FROM animes WHERE code=?", (anime_id,))
-    anime = cursor.fetchone()
-    conn.close()
-    
-    if anime:
-        title, photo, ep_count, country, lang, year, genre, views, ch_link = anime
-        bot_info = bot.get_me()
-        channel_caption = (
-            f"🎬 <b>Nomi:</b> {title}\n\n"
-            f"🥷 <b>Qismi:</b> {ep_count}\n"
-            f"🌍 <b>Davlati:</b> {country}\n"
-            f"🎞 <b>Tili:</b> {lang}\n"
-            f"📅 <b>Yili:</b> {year}\n"
-            f"🎭 <b>Janri:</b> {genre}\n\n"
-            f"🔍 <b>Qidirishlar soni:</b> {views}\n\n"
-            f"🍿 {ch_link}"
-        )
-        channel_markup = types.InlineKeyboardMarkup()
-        bot_link = f"https://t.me{bot_info.username}?start=anime{anime_id}"
-        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=bot_link)
-        channel_markup.add(btn_go_bot)
-        bot.send_photo(chat_id=KANAL_ID, photo=photo, caption=channel_caption, parse_mode="HTML", reply_markup=channel_markup)
-        bot.reply_to(message, "✅ Post kanalingizga muvaffaqiyatli yuborildi!")
-    else:
-        bot.reply_to(message, f"❌ Kod {anime_id} bo'yicha anime bazada topilmadi!")
+# ----------------- ANIME QIDIRISH VA KO'RISH -----------------
 
-@bot.message_handler(commands=['addanime_db'])
-def admin_add_anime_to_db(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    try:
-        text = message.text.replace("/addanime_db ", "").strip()
-        parts = text.split("|")
-        if len(parts) < 10:
-            bot.reply_to(message, "❌ Xato! Format: kod|nomi|rasm_linki|qismlar|davlat|til|yil|janr|ko'rishlar|kanal_link")
-            return
-            
-        a_code, a_title, a_photo, a_ep_raw, a_country, a_lang, a_year, a_genre, a_views, a_link = parts[:10]
-        
-        conn = sqlite3.connect("anime_bot.db")
-        cursor = conn.cursor()
-        cursor.execute("""
-        INSERT OR REPLACE INTO animes (code, title, photo, episodes_count, country, language, year, genre, views, channel_link)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
-        (a_code.strip(), a_title.strip(), a_photo.strip(), int(a_ep_raw.strip()), a_country.strip(), a_lang.strip(), a_year.strip(), a_genre.strip(), a_views.strip(), a_link.strip()))
-        conn.commit()
-        conn.close()
-        
-        bot.reply_to(message, f"✅ {a_title.strip()} bazaga qo'shildi!")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Xato! Formatni tekshiring. (Xatolik: {e})")
-
-@bot.message_handler(commands=['addep'])
-def admin_add_episode(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    if not message.reply_to_message or not message.reply_to_message.video:
-        bot.reply_to(message, "⚠️ Xato: Avval videoga reply qilib buyruq yozing!")
-        return
-    try:
-        args_text = message.text.replace("/addep ", "").strip()
-        args = args_text.split()
-        if len(args) < 2:
-            bot.reply_to(message, "⚠️ Xato! Format: `/addep 101 1`")
-            return
-            
-        anime_code, ep_num_raw = args[:2]
-        ep_num = int(ep_num_raw)
-        video_id = message.reply_to_message.video.file_id
-        
-        conn = sqlite3.connect("anime_bot.db")
-        cursor = conn.cursor()
-        cursor.execute("INSERT OR REPLACE INTO episodes (anime_code, episode_number, video_id) VALUES (?, ?, ?)", (anime_code, ep_num, video_id))
-        conn.commit()
-        conn.close()
-        bot.reply_to(message, f"✅ Kod {anime_code}: {ep_num}-qism saqlandi!")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Xato! (Xatolik: {e})")
-
-@bot.message_handler(func=lambda message: True)
-def handle_messages(message):
-    user_id = message.from_user.id
-    if not check_sub(user_id):
-        bot.send_message(user_id, "🛑 Kanalga a'zolikdan chiqib ketgansiz! Qayta start bosing: /start")
-        return
+@bot.message_handler(content_types=['text'])
+def handle_text(message):
     if message.text == "🔍 Anime qidirish":
-        bot.send_message(user_id, "Anime kodini kiriting (Masalan: 101):")
+        bot.reply_to(message, "Marhamat, anime kodini yozing (Masalan: 101)")
         return
-        
-    code = message.text.strip()
-    conn = sqlite3.connect("anime_bot.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT title, photo, episodes_count, country, language, year, genre, views, channel_link FROM animes WHERE code=?", (code,))
-    anime = cursor.fetchone()
-    conn.close()
-    
-    if anime:
-        title, photo, ep_count, country, lang, year, genre, views, ch_link = anime
-        caption = (
-            f"🎬 <b>Nomi:</b> {title}\n\n"
-            f"🥷 <b>Qismi:</b> {ep_count}\n"
-            f"🌍 <b>Davlati:</b> {country}\n"
-            f"🎞 <b>Tili:</b> {lang}\n"
-            f"📅 <b>Yili:</b> {year}\n"
-            f"🎭 <b>Janri:</b> {genre}\n\n"
-            f"🔍 <b>Qidirishlar soni:</b> {views}\n\n"
-            f"🍿 {ch_link}"
-        )
-        markup = get_episodes_grid(code, int(ep_count))
-        bot.send_photo(chat_id=user_id, photo=photo, caption=caption, parse_mode="HTML", reply_markup=markup)
-    else:
-        bot.send_message(user_id, "❌ Bunday kodli anime topilmadi.")
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("ep_"))
-def send_episode_callback(call):
-    try:
-        _, anime_code, ep_num = call.data.split("_")
-        conn = sqlite3.connect("anime_bot.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT video_id FROM episodes WHERE anime_code=? AND episode_number=?", (anime_code, int(ep_num)))
-        row = cursor.fetchone()
-        conn.close()
+    if message.text.isdigit() and db is not None:
+        code = message.text
+        anime = db['animes'].find_one({'code': code})
         
-        if row:
-            video_file_id, = row
-            bot.send_video(chat_id=call.message.chat.id, video=video_file_id, caption=f"{ep_num}-qism")
+        if anime:
+            caption = (
+                f"🎬 <b>{anime.get('title')}</b>\n"
+                f"🌍 Davlat: {anime.get('country')}\n"
+                f"🇺🇿 Til: {anime.get('language')}\n"
+                f"💿 Qismlar: {anime.get('episodes_count')}"
+            )
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("📥 Qismlarni ko'rish", callback_data=f"view_{code}"))
+            
+            try:
+                if anime.get('photo') and anime.get('photo').startswith('http'):
+                    bot.send_photo(message.chat.id, anime['photo'], caption=caption, parse_mode='HTML', reply_markup=markup)
+                else:
+                    bot.send_message(message.chat.id, caption, parse_mode='HTML', reply_markup=markup)
+            except:
+                bot.send_message(message.chat.id, caption, parse_mode='HTML', reply_markup=markup)
         else:
-            bot.answer_callback_query(call.id, "⚠️ Videosi hali yuklanmagan!", show_alert=True)
-        bot.answer_callback_query(call.id)
-    except Exception as e:
-        bot.answer_callback_query(call.id, f"Xatolik: {e}")
+            bot.reply_to(message, "❌ Bunday kodli anime topilmadi.")
 
+# "Qismlarni ko'rish" bosilganda ishlaydigan funksiya
+@bot.callback_query_handler(func=lambda call: call.data.startswith('view_'))
+def view_episodes(call):
+    code = call.data.split('_')[1]
+    anime = db['animes'].find_one({'code': code})
+    
+    if not anime:
+        bot.answer_callback_query(call.id, "Anime topilmadi!")
+        return
+
+    # Tugmachalarni yaratish (1, 2, 3...)
+    markup = types.InlineKeyboardMarkup()
+    buttons = []
+    count = int(anime.get('episodes_count', 0))
+    
+    for i in range(1, count + 1):
+        buttons.append(types.InlineKeyboardButton(str(i), callback_data=f"ep_{code}_{i}"))
+        if len(buttons) == 5: # Bir qatorda 5 ta tugma
+            markup.row(*buttons)
+            buttons = []
+    if buttons:
+        markup.row(*buttons)
+        
+    bot.send_message(call.message.chat.id, f"📺 <b>{anime['title']}</b>\nQismni tanlang:", parse_mode='HTML', reply_markup=markup)
+
+# Qism (1, 2...) bosilganda videoni yuborish
+@bot.callback_query_handler(func=lambda call: call.data.startswith('ep_'))
+def send_episode(call):
+    _, code, ep_num = call.data.split('_')
+    ep_num = int(ep_num)
+    
+    episode = db['episodes'].find_one({'anime_code': code, 'episode': ep_num})
+    
+    if episode:
+        file_id = episode['file_id']
+        bot.send_message(call.message.chat.id, f"🎬 {ep_num}-qism yuklanmoqda...")
+        
+        # Agar file_id http link bo'lsa (Test uchun)
+        if file_id.startswith('http'):
+             bot.send_document(call.message.chat.id, file_id, caption=f"{ep_num}-qism")
+        else:
+             # Haqiqiy Telegram File ID bo'lsa
+             bot.send_video(call.message.chat.id, file_id, caption=f"{ep_num}-qism")
+    else:
+        bot.answer_callback_query(call.id, "❌ Bu qism hali bazaga yuklanmagan.", show_alert=True)
+
+# ----------------- ADMIN COMMANDS -----------------
+@bot.message_handler(commands=['addep'])
+def add_episode_command(message):
+    # Foydalanish: /addep 101|1|FILE_ID_YOKI_LINK
+    if message.from_user.id != ADMIN_ID: return
+    try:
+        _, code, ep, file_id = message.text.split('|')
+        db['episodes'].update_one(
+            {'anime_code': code.strip(), 'episode': int(ep)},
+            {'$set': {'file_id': file_id.strip()}},
+            upsert=True
+        )
+        bot.reply_to(message, f"✅ {code}-anime {ep}-qism saqlandi!")
+    except:
+        bot.reply_to(message, "Xato! Format: /addep 101|1|FILE_ID")
+
+# ----------------- SERVER -----------------
 @app.route('/')
 def home():
-    return "Bot is running!"
+    return "Bot Online"
 
-def run():
-    app.run(host='0.0.0.0', port=8080)
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
 
 if __name__ == "__main__":
-    init_db()
-    t = Thread(target=run)
-    t.start()
-    print("Bot muvaffaqiyatli ishga tushdi...")
-    while True:
-        try:
-            bot.polling(none_stop=True, interval=0, timeout=60)
-        except Exception as e:
-            print(f"Xatolik ulanishda: {e}")
-            time.sleep(5)
+    Thread(target=run_flask).start()
+    bot.infinity_polling()
         
