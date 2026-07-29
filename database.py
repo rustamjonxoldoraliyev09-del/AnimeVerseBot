@@ -1,5 +1,7 @@
+from pymongo import MongoClient
+
 # MONGO KODINGIZNI QO'YING VA PAROLINGIZNI YOZING!
-MONGO_URL = "mongodb+srv://rustambek:qwertyupoi98@clunster0.xxxxx.mongodb.net/?retryWrites=true&w=majority"
+MONGO_URL = "mongodb+srv://rustambek: qwertyupoi98@clunster0.xxxxx.mongodb.net/?retryWrites=true&w=majority"
 
 client = MongoClient(MONGO_URL)
 db = client["anime_verse_database"]
@@ -24,4 +26,5 @@ def init_db():
             "views": "17366",
             "channel_link": "@an1verseuz"
         }
-        animes_col.insert_one(anime_data
+        animes_col.insert_one(anime_data)
+        
