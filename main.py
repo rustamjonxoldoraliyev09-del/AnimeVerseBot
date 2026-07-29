@@ -8,7 +8,7 @@ from threading import Thread
 from database import animes_col, episodes_col, init_db
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAFpEogBBbMylV1FRLZO5MdgkQ4QJtJHC_c"
+TOKEN = "8806794822:AAFhUWB2jUEQ3vi16G5R6YW0PwTNVzapFh4"
 KANAL_ID = "@an1verseuz"
 ADMIN_ID = 8370334471
 
@@ -193,4 +193,3 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Xatolik bo'ldi, 5 soniyadan keyin qayta ulanadi: {e}")
             time.sleep(5)
-      
