@@ -8,7 +8,7 @@ from threading import Thread
 from database import animes_col, episodes_col, init_db
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAGRDTx7txHuepaPNTP6Mha9Rq80SE27fyo"
+TOKEN = "8806794822:AAE04psCLZEGBB2bSaguF5Sud5lTvPXxkXM"
 KANAL_ID = "@an1verseuz"
 ADMIN_ID = 8370334471
 
