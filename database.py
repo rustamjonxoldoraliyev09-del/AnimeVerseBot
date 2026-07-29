@@ -1,7 +1,8 @@
 from pymongo import MongoClient
 
 # MONGO KODINGIZNI QO'YING VA PAROLINGIZNI YOZING!
-MONGO_URL = "mongodb+srv://rustambek: qwertyupoi98@clunster0.xxxxx.mongodb.net/?retryWrites=true&w=majority"
+MONGO_URL = "mongodb+srv://rustamjonxoldoraliyev09_db_user:PAROLINGIZ@clunster0.n0daf0n.mongodb.net/?appName=Clunster0"
+"
 
 client = MongoClient(MONGO_URL)
 db = client["anime_verse_database"]
