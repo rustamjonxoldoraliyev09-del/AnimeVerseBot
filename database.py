@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 
 # MONGO KODINGIZNI QO'YING VA PAROLINGIZNI YOZING!
-MONGO_URL = "mongodb+srv://rustamjonxoldoraliyev09_db_user:PAROLINGIZ@clunster0.n0daf0n.mongodb.net/?appName=Clunster0"
+MONGO_URL = "mongodb+srv://rustamjonxoldoraliyev09_db_user: qwertyupoi98@clunster0.n0daf0n.mongodb.net/?appName=Clunster0"
 "
 
 client = MongoClient(MONGO_URL)
