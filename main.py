@@ -7,7 +7,7 @@ from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAGKlVLI0NrjePyzCBNIfvag1Gz5WsRO-fk"
+TOKEN = "8806794822:AAFpEogBBbMylV1FRLZO5MdgkQ4QJtJHC_c"
 KANAL_ID = "@an1verseuz"
 ADMIN_ID = 8370334471
 
@@ -51,10 +51,10 @@ def get_episodes_grid(anime_code, total_episodes):
     for i in range(1, num_episodes + 1):
         row_buttons.append(types.InlineKeyboardButton(text=str(i), callback_data=f"ep_{anime_code}_{i}"))
         if len(row_buttons) == 5:
-            markup.row(*row_buttons)
+            markup.add(*row_buttons)
             row_buttons = []
     if row_buttons:
-        markup.row(*row_buttons)
+        markup.add(*row_buttons)
     return markup
 
 def check_sub(user_id):
@@ -78,7 +78,7 @@ def start_command(message):
         show_search_menu(user_id)
     else:
         markup = types.InlineKeyboardMarkup()
-        username_clean = KANAL_ID.replace('@', '')
+        username_clean = str(KANAL_ID).replace('@', '')
         markup.add(types.InlineKeyboardButton(text="An1Verse", url=f"tg://resolve?domain={username_clean}"))
         markup.add(types.InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_subscription"))
         bot.send_message(user_id, "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:", reply_markup=markup)
@@ -99,9 +99,7 @@ def show_search_menu(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("🔍 Anime qidirish"))
     bot.send_message(user_id, "Pastdagi tugmani bosib anime qidirishingiz mumkin 👇", reply_markup=markup)
-# 🟢 YANGI USUL: ANIME BAZAGA RASM BILAN QO'SHILADI (LINK QIDIRIB YURMAYSIZ)
-# Qanday ishlatiladi: Botga anime rasmini yuborasiz va tagiga (caption) yozasiz:
-# /addanime_db kod|nomi|qismlar_soni|davlat|til|yil|janr|ko'rishlar|kanal_link
+# 🟢 YANGI MUTLAQO KVADRAT QAVSLARSIZ VA XATOSIZ TIZIM
 @bot.message_handler(content_types=['photo'])
 def admin_photo_handler(message):
     if message.from_user.id != ADMIN_ID:
@@ -115,8 +113,21 @@ def admin_photo_handler(message):
             bot.reply_to(message, "❌ Xato! Format: kod|nomi|qismlar|davlat|til|yil|janr|ko'rishlar|kanal_link")
             return
             
-        a_code, a_title, a_ep_raw, a_country, a_lang, a_year, a_genre, a_views, a_link = parts[:9]
-        a_photo = message.photo[-1].file_id # Rasmni ID sini avtomatik oladi
+        # Elementlarni navbatma-navbat xavfsiz sug'urib olish (Qavslarsiz va toza matn)
+        a_code = str(parts.pop(0)).strip()
+        a_title = str(parts.pop(0)).strip()
+        a_ep_raw = str(parts.pop(0)).strip()
+        a_country = str(parts.pop(0)).strip()
+        a_lang = str(parts.pop(0)).strip()
+        a_year = str(parts.pop(0)).strip()
+        a_genre = str(parts.pop(0)).strip()
+        a_views = str(parts.pop(0)).strip()
+        a_link = str(parts.pop(0)).strip()
+        
+        # Rasmdan ID ni olishning eng xavfsiz va qavslarsiz usuli (.pop() orqali)
+        photo_list = list(message.photo)
+        last_photo_object = photo_list.pop()
+        a_photo = getattr(last_photo_object, "file_id")
         
         conn = psycopg2.connect(DB_URI)
         cursor = conn.cursor()
@@ -127,12 +138,12 @@ def admin_photo_handler(message):
         title=EXCLUDED.title, photo=EXCLUDED.photo, episodes_count=EXCLUDED.episodes_count,
         country=EXCLUDED.country, language=EXCLUDED.language, year=EXCLUDED.year,
         genre=EXCLUDED.genre, views=EXCLUDED.views, channel_link=EXCLUDED.channel_link""", 
-        (a_code.strip(), a_title.strip(), a_photo, int(a_ep_raw.strip()), a_country.strip(), a_lang.strip(), a_year.strip(), a_genre.strip(), a_views.strip(), a_link.strip()))
+        (a_code, a_title, a_photo, int(a_ep_raw), a_country, a_lang, a_year, a_genre, a_views, a_link))
         conn.commit()
         cursor.close()
         conn.close()
         
-        bot.reply_to(message, f"✅ {a_title.strip()} rasmi bilan abadiy bazaga qo'shildi!")
+        bot.reply_to(message, f"✅ {a_title} rasmi bilan abadiy bazaga qo'shildi!")
     except Exception as e:
         bot.reply_to(message, f"❌ Xato! (Xatolik: {e})")
 
@@ -153,7 +164,18 @@ def admin_add_anime_to_channel(message):
     conn.close()
     
     if anime:
-        title, photo, ep_count, country, lang, year, genre, views, ch_link = anime
+        # Bazadan kelgan massivni xavfsiz parslash (.pop(0) orqali)
+        anime_list = list(anime)
+        title = str(anime_list.pop(0))
+        photo = str(anime_list.pop(0))
+        ep_count = str(anime_list.pop(0))
+        country = str(anime_list.pop(0))
+        lang = str(anime_list.pop(0))
+        year = str(anime_list.pop(0))
+        genre = str(anime_list.pop(0))
+        views = str(anime_list.pop(0))
+        ch_link = str(anime_list.pop(0))
+        
         bot_info = bot.get_me()
         channel_caption = (
             f"🎬 <b>Nomi:</b> {title}\n\n"
@@ -188,9 +210,9 @@ def admin_add_episode(message):
             bot.reply_to(message, "⚠️ Xato! Format: `/addep 101 1`")
             return
             
-        anime_code, ep_num_raw = args[:2]
-        ep_num = int(ep_num_raw)
-        video_id = message.reply_to_message.video.file_id
+        anime_code = str(args.pop(0)).strip()
+        ep_num = int(args.pop(0))
+        video_id = getattr(message.reply_to_message.video, "file_id")
         
         conn = psycopg2.connect(DB_URI)
         cursor = conn.cursor()
@@ -220,7 +242,17 @@ def handle_messages(message):
     conn.close()
     
     if anime:
-        title, photo, ep_count, country, lang, year, genre, views, ch_link = anime
+        anime_list = list(anime)
+        title = str(anime_list.pop(0))
+        photo = str(anime_list.pop(0))
+        ep_count = str(anime_list.pop(0))
+        country = str(anime_list.pop(0))
+        lang = str(anime_list.pop(0))
+        year = str(anime_list.pop(0))
+        genre = str(anime_list.pop(0))
+        views = str(anime_list.pop(0))
+        ch_link = str(anime_list.pop(0))
+        
         caption = (
             f"🎬 <b>Nomi:</b> {title}\n\n"
             f"🥷 <b>Qismi:</b> {ep_count}\n"
@@ -247,17 +279,18 @@ def send_episode_callback(call):
         cursor.close()
         conn.close()
         if row:
-            video_file_id, = row
+            row_list = list(row)
+            video_file_id = str(row_list.pop(0)) # Massiv ichidan elementni xavfsiz va aniq olish
             bot.send_video(chat_id=call.message.chat.id, video=video_file_id, caption=f"{ep_num}-qism")
         else:
-            bot.answer_callback_query(call.id, "⚠️ Videosi hali yuklanmagan!", show_alert=True)
+            bot.reply_to(call.message, "⚠️ Videosi hali yuklanmagan!")
         bot.answer_callback_query(call.id)
     except Exception as e:
         bot.answer_callback_query(call.id, f"Xatolik: {e}")
 
 @app.route('/')
 def home():
-    return "Bot is running on Supabase!"
+    return "Bot is running on Supabase Cloud!"
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -273,4 +306,4 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Xatolik ulanishda: {e}")
             time.sleep(5)
-      
+    
