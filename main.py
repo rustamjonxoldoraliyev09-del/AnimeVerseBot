@@ -8,7 +8,7 @@ from threading import Thread
 
 # ----------------- SOZLAMALAR -----------------
 
-TOKEN = "8806794822:AAGqreBWLhGnwhaKrZQoN2sNqFqq48Z86mU"
+TOKEN = "8806794822:AAE_-A_Jh2nVtdFnR9vUfq5O2FPP3qJZuGQ"
 KANAL_ID = "@an1verseuz"
 ADMIN_ID = 8370334471
 
@@ -353,7 +353,7 @@ def admin_add_anime_to_channel(message):
 
         channel_caption = (
             f"🎬 **Nomi:** {anime[1]}\n\n"
-            f"🥷 **Qismi:** 0/{anime[3]}\n"
+            f"🥷 **Qismi:** 24/{anime[3]}\n"
             f"🌍 **Davlati:** {anime[4]}\n"
             f"🎞 **Tili:** {anime[5]}\n"
             f"📅 **Yili:** {anime[6]}\n"
