@@ -1,62 +1,39 @@
 import os
-import time
-import psycopg2
 import telebot
 from telebot import types
 from flask import Flask
 from threading import Thread
 
 # ----------------- SIZNING SOZLAMALARINGIZ -----------------
-TOKEN = "8806794822:AAFpEogBBbMylV1FRLZO5MdgkQ4QJtJHC_c"
-KANAL_ID = "@an1verseuz"
-ADMIN_ID = 8370334471
-
-# SUPABASE ABADIY XOTIRA HAVOLASI
-DB_URI = "postgresql://postgres:qwertuypoi65758@db.egzyupwuqtvbwpnpxluu.supabase.co:5432/postgres"
+TOKEN = "8806794822:AAGKlVLI0NrjePyzCBNIfvag1Gz5WsRO-fk"  # @BotFather bergan tokenni faqat shu yerga yozing!
+KANAL_ID = "@an1verseuz"  # Sizning kanalingiz
+ADMIN_ID = 8370334471  # Sizning shaxsiy Telegram ID raqamingiz
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask('')
 
-def init_db():
-    conn = psycopg2.connect(DB_URI)
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS animes (
-        code TEXT PRIMARY KEY,
-        title TEXT,
-        photo TEXT,
-        episodes_count INTEGER,
-        country TEXT,
-        language TEXT,
-        year TEXT,
-        genre TEXT,
-        views TEXT,
-        channel_link TEXT
-    )""")
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS episodes (
-        id SERIAL PRIMARY KEY,
-        anime_code TEXT,
-        episode_number INTEGER,
-        video_id TEXT
-    )""")
-    conn.commit()
-    cursor.close()
-    conn.close()
+# ----------------- ANIME MA'LUMOTLAR BAZASI -----------------
+ANIME_DATABASE = {
+    "101": {
+        "id": "101",
+        "title": "Shilliq sifatida qayta tug'ilganim haqida (1-fasl)",
+        # MUAMMONI HAL QILISH UCHUN BUYERGA TELEGRAM RASM LINKINI QO'YDIK:
+        "photo": "https://telegra.ph", 
+        "episodes_count": 24,
+        "country": "Yaponiya",
+        "language": "Uzbek tilida",
+        "year": "2018",
+        "genre": "Ekshn, Komediya, Fentezi, O'zga Dunyo",
+        "views": "17366",
+        "channel_link": "@an1verseuz",
+        "episodes_links": {
+            1: "https://t.me", 
+            2: "https://t.me",
+        }
+    }
+}
 
-def get_episodes_grid(anime_code, total_episodes):
-    markup = types.InlineKeyboardMarkup()
-    row_buttons = []
-    num_episodes = int(total_episodes)
-    for i in range(1, num_episodes + 1):
-        row_buttons.append(types.InlineKeyboardButton(text=str(i), callback_data=f"ep_{anime_code}_{i}"))
-        if len(row_buttons) == 5:
-            markup.add(*row_buttons)
-            row_buttons = []
-    if row_buttons:
-        markup.add(*row_buttons)
-    return markup
-
+# Majburiy obunani tekshirish
 def check_sub(user_id):
     try:
         member = bot.get_chat_member(KANAL_ID, user_id)
@@ -64,22 +41,32 @@ def check_sub(user_id):
     except Exception:
         return False
 
+# Start komandasi va Majburiy obuna o'rnatilishi
 @bot.message_handler(commands=['start'])
 def start_command(message):
     user_id = message.from_user.id
+    
+    start_args = message.text.split()
+    if len(start_args) > 1 and start_args[1].startswith("anime"):
+        anime_id = start_args[1].replace("anime", "")
+        if check_sub(user_id):
+            show_episodes_by_id(message.chat.id, anime_id)
+            return
+            
     start_text = (
-        "Assalomu alaykum bizning botimizga xush kelibsiz!!!\n"
+        "Assalomu alaykum bizning botimizga xush kelibsiz!!! "
         "Tomosha qilish uchun Kodni... yozing... ✔️\n\n"
-        "Murojat va takliflar uchun:\n\n@An1verseuzb✔️\n\n"
+        "Murojat va takliflar uchun:\n\n"
+        "@an1verseuzb✔️\n\n"
         "Botdan to'liq foydalanish uchun homiy kanalga azo bo'ling!! ✔️"
     )
     bot.send_message(user_id, start_text)
+    
     if check_sub(user_id):
         show_search_menu(user_id)
     else:
         markup = types.InlineKeyboardMarkup()
-        username_clean = str(KANAL_ID).replace('@', '')
-        markup.add(types.InlineKeyboardButton(text="An1Verse", url=f"tg://resolve?domain={username_clean}"))
+        markup.add(types.InlineKeyboardButton(text="O'zga dunyo animelar | Isekai", url=f"https://t.me{KANAL_ID.replace('@', '')}"))
         markup.add(types.InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_subscription"))
         bot.send_message(user_id, "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:", reply_markup=markup)
 
@@ -87,10 +74,7 @@ def start_command(message):
 def check_callback(call):
     user_id = call.from_user.id
     if check_sub(user_id):
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except Exception:
-            pass
+        bot.delete_message(call.message.chat.id, call.message.message_id)
         show_search_menu(user_id)
     else:
         bot.answer_callback_query(call.id, "❌ Siz hali kanalga a'zo bo'lmadingiz!", show_alert=True)
@@ -99,211 +83,133 @@ def show_search_menu(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("🔍 Anime qidirish"))
     bot.send_message(user_id, "Pastdagi tugmani bosib anime qidirishingiz mumkin 👇", reply_markup=markup)
-# 🟢 YANGI MUTLAQO KVADRAT QAVSLARSIZ VA XATOSIZ TIZIM
-@bot.message_handler(content_types=['photo'])
-def admin_photo_handler(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    if not message.caption or not message.caption.startswith("/addanime_db"):
-        return
-    try:
-        text = message.caption.replace("/addanime_db ", "").strip()
-        parts = text.split("|")
-        if len(parts) < 9:
-            bot.reply_to(message, "❌ Xato! Format: kod|nomi|qismlar|davlat|til|yil|janr|ko'rishlar|kanal_link")
-            return
-            
-        # Elementlarni navbatma-navbat xavfsiz sug'urib olish (Qavslarsiz va toza matn)
-        a_code = str(parts.pop(0)).strip()
-        a_title = str(parts.pop(0)).strip()
-        a_ep_raw = str(parts.pop(0)).strip()
-        a_country = str(parts.pop(0)).strip()
-        a_lang = str(parts.pop(0)).strip()
-        a_year = str(parts.pop(0)).strip()
-        a_genre = str(parts.pop(0)).strip()
-        a_views = str(parts.pop(0)).strip()
-        a_link = str(parts.pop(0)).strip()
-        
-        # Rasmdan ID ni olishning eng xavfsiz va qavslarsiz usuli (.pop() orqali)
-        photo_list = list(message.photo)
-        last_photo_object = photo_list.pop()
-        a_photo = getattr(last_photo_object, "file_id")
-        
-        conn = psycopg2.connect(DB_URI)
-        cursor = conn.cursor()
-        cursor.execute("""
-        INSERT INTO animes (code, title, photo, episodes_count, country, language, year, genre, views, channel_link)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (code) DO UPDATE SET
-        title=EXCLUDED.title, photo=EXCLUDED.photo, episodes_count=EXCLUDED.episodes_count,
-        country=EXCLUDED.country, language=EXCLUDED.language, year=EXCLUDED.year,
-        genre=EXCLUDED.genre, views=EXCLUDED.views, channel_link=EXCLUDED.channel_link""", 
-        (a_code, a_title, a_photo, int(a_ep_raw), a_country, a_lang, a_year, a_genre, a_views, a_link))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
-        bot.reply_to(message, f"✅ {a_title} rasmi bilan abadiy bazaga qo'shildi!")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Xato! (Xatolik: {e})")
 
+# Admin tomonidan kanalga chiroyli post yuborish (/addanime)
 @bot.message_handler(commands=['addanime'])
 def admin_add_anime_to_channel(message):
     if message.from_user.id != ADMIN_ID:
         return
-    text_content = message.text.replace("/addanime", "").strip()
-    anime_id = "101"
-    if text_content:
-        anime_id = text_content
-    
-    conn = psycopg2.connect(DB_URI)
-    cursor = conn.cursor()
-    cursor.execute("SELECT title, photo, episodes_count, country, language, year, genre, views, channel_link FROM animes WHERE code=%s", (anime_id,))
-    anime = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    
-    if anime:
-        # Bazadan kelgan massivni xavfsiz parslash (.pop(0) orqali)
-        anime_list = list(anime)
-        title = str(anime_list.pop(0))
-        photo = str(anime_list.pop(0))
-        ep_count = str(anime_list.pop(0))
-        country = str(anime_list.pop(0))
-        lang = str(anime_list.pop(0))
-        year = str(anime_list.pop(0))
-        genre = str(anime_list.pop(0))
-        views = str(anime_list.pop(0))
-        ch_link = str(anime_list.pop(0))
         
+    anime_id = "101" 
+    if anime_id in ANIME_DATABASE:
+        anime = ANIME_DATABASE[anime_id]
         bot_info = bot.get_me()
-        channel_caption = (
-            f"🎬 <b>Nomi:</b> {title}\n\n"
-            f"🥷 <b>Qismi:</b> {ep_count}\n"
-            f"🌍 <b>Davlati:</b> {country}\n"
-            f"🎞 <b>Tili:</b> {lang}\n"
-            f"📅 <b>Yili:</b> {year}\n"
-            f"🎭 <b>Janri:</b> {genre}\n\n"
-            f"🔍 <b>Qidirishlar soni:</b> {views}\n\n"
-            f"🍿 {ch_link}"
-        )
-        channel_markup = types.InlineKeyboardMarkup()
-        bot_link = f"https://t.me{bot_info.username}?start=anime{anime_id}"
-        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=bot_link)
-        channel_markup.add(btn_go_bot)
-        bot.send_photo(chat_id=KANAL_ID, photo=photo, caption=channel_caption, parse_mode="HTML", reply_markup=channel_markup)
-        bot.reply_to(message, "✅ Post kanalingizga muvaffaqiyatli yuborildi!")
-    else:
-        bot.reply_to(message, f"❌ Kod {anime_id} bo'yicha anime bazada topilmadi!")
-
-@bot.message_handler(commands=['addep'])
-def admin_add_episode(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    if not message.reply_to_message or not message.reply_to_message.video:
-        bot.reply_to(message, "⚠️ Xato: Avval videoga reply qilib buyruq yozing!")
-        return
-    try:
-        args_text = message.text.replace("/addep ", "").strip()
-        args = args_text.split()
-        if len(args) < 2:
-            bot.reply_to(message, "⚠️ Xato! Format: `/addep 101 1`")
-            return
-            
-        anime_code = str(args.pop(0)).strip()
-        ep_num = int(args.pop(0))
-        video_id = getattr(message.reply_to_message.video, "file_id")
         
-        conn = psycopg2.connect(DB_URI)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO episodes (anime_code, episode_number, video_id) VALUES (%s, %s, %s)", (anime_code, ep_num, video_id))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        bot.reply_to(message, f"✅ Kod {anime_code}: {ep_num}-qism saqlandi!")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Xato! (Xatolik: {e})")
+        channel_caption = (
+            f"🎬 **Nomi:** {anime['title']}\n\n"
+            f"🥷 **Qismi:** 0/{anime['episodes_count']}\n"
+            f"🌍 **Davlati:** {anime['country']}\n"
+            f"🎞 **Tili:** {anime['language']}\n"
+            f"📅 **Yili:** {anime['year']}\n"
+            f"🎭 **Janri:** {anime['genre']}\n\n"
+            f"🔍 **Qidirishlar soni:** {anime['views']}\n\n"
+            f"🍿 {anime['channel_link']}"
+        )
+        
+        channel_markup = types.InlineKeyboardMarkup()
+        btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=f"https://t.me{bot_info.username}?start=anime{anime_id}")
+        channel_markup.add(btn_go_bot)
+        
+        bot.send_photo(chat_id=KANAL_ID, photo=anime["photo"], caption=channel_caption, parse_mode="Markdown", reply_markup=channel_markup)
+        bot.reply_to(message, "✅ Post kanalingizga muvaffaqiyatli yuborildi!")
 
+# Qidiruv tizimi
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
     user_id = message.from_user.id
     if not check_sub(user_id):
         bot.send_message(user_id, "🛑 Kanalga a'zolikdan chiqib ketgansiz! Qayta start bosing: /start")
         return
+
     if message.text == "🔍 Anime qidirish":
-        bot.send_message(user_id, "Anime kodini kiriting (Masalan: 101):")
-        return
-        
-    code = message.text.strip()
-    conn = psycopg2.connect(DB_URI)
-    cursor = conn.cursor()
-    cursor.execute("SELECT title, photo, episodes_count, country, language, year, genre, views, channel_link FROM animes WHERE code=%s", (code,))
-    anime = cursor.fetchone()
-    conn.close()
+        msg = bot.send_message(user_id, "⌨️ Qidirayotgan animeyingizning **kodini** yoki **nomini** kiriting:")
+        bot.register_next_step_handler(msg, process_anime_search)
+
+def process_anime_search(message):
+    user_id = message.from_user.id
+    search_query = message.text.strip().lower()
+    found_anime = None
     
-    if anime:
-        anime_list = list(anime)
-        title = str(anime_list.pop(0))
-        photo = str(anime_list.pop(0))
-        ep_count = str(anime_list.pop(0))
-        country = str(anime_list.pop(0))
-        lang = str(anime_list.pop(0))
-        year = str(anime_list.pop(0))
-        genre = str(anime_list.pop(0))
-        views = str(anime_list.pop(0))
-        ch_link = str(anime_list.pop(0))
-        
-        caption = (
-            f"🎬 <b>Nomi:</b> {title}\n\n"
-            f"🥷 <b>Qismi:</b> {ep_count}\n"
-            f"🌍 <b>Davlati:</b> {country}\n"
-            f"🎞 <b>Tili:</b> {lang}\n"
-            f"📅 <b>Yili:</b> {year}\n"
-            f"🎭 <b>Janri:</b> {genre}\n\n"
-            f"🔍 <b>Qidirishlar soni:</b> {views}\n\n"
-            f"🍿 {ch_link}"
+    for key, anime in ANIME_DATABASE.items():
+        if search_query == anime["id"] or search_query in anime["title"].lower():
+            found_anime = anime
+            break
+            
+    if found_anime:
+        anime_caption = (
+            f"🎬 **Nomi:** {found_anime['title']}\n\n"
+            f"🥷 **Qismi:** 0/{found_anime['episodes_count']}\n"
+            f"🌍 **Davlati:** {found_anime['country']}\n"
+            f"🎞 **Tili:** {found_anime['language']}\n"
+            f"📅 **Yili:** {found_anime['year']}\n"
+            f"🎭 **Janri:** {found_anime['genre']}\n\n"
+            f"🔍 **Qidirishlar soni:** {found_anime['views']}\n\n"
+            f"🍿 {found_anime['channel_link']}"
         )
-        markup = get_episodes_grid(code, int(ep_count))
-        bot.send_photo(chat_id=user_id, photo=photo, caption=caption, parse_mode="HTML", reply_markup=markup)
+        inline_markup = types.InlineKeyboardMarkup()
+        btn_download = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", callback_data=f"open_episodes_{found_anime['id']}")
+        inline_markup.add(btn_download)
+        
+        bot.send_photo(user_id, photo=found_anime["photo"], caption=anime_caption, parse_mode="Markdown", reply_markup=inline_markup)
     else:
-        bot.send_message(user_id, "❌ Bunday kodli anime topilmadi.")
+        bot.send_message(user_id, "❌ Bunday anime topilmadi.")
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("ep_"))
-def send_episode_callback(call):
-    try:
-        _, anime_code, ep_num = call.data.split("_")
-        conn = psycopg2.connect(DB_URI)
-        cursor = conn.cursor()
-        cursor.execute("SELECT video_id FROM episodes WHERE anime_code=%s AND episode_number=%s", (anime_code, int(ep_num)))
-        row = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        if row:
-            row_list = list(row)
-            video_file_id = str(row_list.pop(0)) # Massiv ichidan elementni xavfsiz va aniq olish
-            bot.send_video(chat_id=call.message.chat.id, video=video_file_id, caption=f"{ep_num}-qism")
+# Dinamik qismlar tugmalari paneli
+def show_episodes_by_id(chat_id, anime_id):
+    if anime_id in ANIME_DATABASE:
+        anime = ANIME_DATABASE[anime_id]
+        markup = types.InlineKeyboardMarkup(row_width=5)
+        buttons = []
+        for i in range(1, anime["episodes_count"] + 1):
+            btn = types.InlineKeyboardButton(text=str(i), callback_data=f"get_ep_{anime_id}_{i}")
+            buttons.append(btn)
+        markup.add(*buttons)
+        
+        nav_buttons = [
+            types.InlineKeyboardButton(text="⬅️", callback_data="prev_page"),
+            types.InlineKeyboardButton(text="❌", callback_data="close_panel"),
+            types.InlineKeyboardButton(text="➡️", callback_data="next_page")
+        ]
+        markup.row(*nav_buttons)
+        
+        bot.send_message(chat_id=chat_id, text=f"🎬 **{anime['title']}**\n\n🔽 Yuklab olmoqchi bo'lgan qism raqamini tanlang:", parse_mode="Markdown", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("open_episodes_"))
+def open_episodes_callback(call):
+    anime_id = call.data.replace("open_episodes_", "")
+    show_episodes_by_id(call.message.chat.id, anime_id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("get_ep_"))
+def get_episode_file(call):
+    data_parts = call.data.split("_")
+    anime_id = data_parts[2]
+    ep_num = int(data_parts[3])
+    
+    if anime_id in ANIME_DATABASE:
+        anime = ANIME_DATABASE[anime_id]
+        if ep_num in anime["episodes_links"]:
+            file_link = anime["episodes_links"][ep_num]
+            bot.send_message(chat_id=call.message.chat.id, text=f"🎬 **{anime['title']}**\n🍿 **{ep_num}-qism**\n\n📥 Yuklab olish/Ko'rish uchun havola:\n{file_link}", parse_mode="Markdown")
         else:
-            bot.reply_to(call.message, "⚠️ Videosi hali yuklanmagan!")
-        bot.answer_callback_query(call.id)
-    except Exception as e:
-        bot.answer_callback_query(call.id, f"Xatolik: {e}")
+            bot.answer_callback_query(call.id, f"❌ Kechirasiz, {ep_num}-qism hali yuklanmagan!", show_alert=True)
 
+@bot.callback_query_handler(func=lambda call: call.data == "close_panel")
+def close_panel_callback(call):
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+
+# ----------------- RENDER SERVERDA UMRBOD YOQIB QO'YISH QISMI -----------------
 @app.route('/')
 def home():
-    return "Bot is running on Supabase Cloud!"
+    return "Bot faol ishlamoqda!"
 
 def run():
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
-if __name__ == "__main__":
-    init_db()
+def keep_alive():
     t = Thread(target=run)
     t.start()
-    print("Bot muvaffaqiyatli ishga tushdi...")
-    while True:
-        try:
-            bot.polling(none_stop=True, interval=0, timeout=60)
-        except Exception as e:
-            print(f"Xatolik ulanishda: {e}")
-            time.sleep(5)
-    
+
+if __name__ == "__main__":
+    keep_alive()
+    print("Bot serverda muvaffaqiyatli yurdi!")
+    bot.infinity_polling()
