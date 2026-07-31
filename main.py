@@ -381,14 +381,11 @@ def admin_add_anime_to_channel(message):
         uploaded_episodes = get_uploaded_episodes_count(anime_id)
 
         channel_caption = (
-            f"🎬 **Nomi:** {anime[1]}\n\n"
-            f"🥷 **Qismi:** {uploaded_episodes}/{anime[3]}\n"
-            f"🌍 **Davlati:** {anime[4]}\n"
-            f"🎞 **Tili:** {anime[5]}\n"
-            f"📅 **Yili:** {anime[6]}\n"
-            f"🎭 **Janri:** {anime[7]}\n\n"
-            f"🔍 **Qidirishlar soni:** {anime[8]}\n\n"
-            f"🍿 {anime[9]}"
+        f"⟢⟢⟢ {anime[1]} ⟢⟢⟢\n"
+        f"╭─ 🎞️ Qism  ─ {uploaded_episodes}/{anime[3]}\n"
+        f"├─ 🇺🇿 Til   ─ {anime[5]}\n"
+        f"├─ 🎭 Janr  ─ {anime[7]}\n"
+        f"╰─ 📢 Kanal ─ @an1verseuz"
         )
 
         channel_markup = types.InlineKeyboardMarkup()
