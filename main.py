@@ -141,6 +141,7 @@ def admin_add_anime_to_channel(message):
         channel_markup = types.InlineKeyboardMarkup()
         bot_link = f"https://t.me{bot_info.username}?start=anime{anime_id}"
         btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=bot_link)
+        channel_markup.add(btn_go_bot)
         
         bot.send_photo(chat_id=KANAL_ID, photo=anime[2], caption=channel_caption, parse_mode="Markdown", reply_markup=channel_markup)
         bot.reply_to(message, "✅ Post kanalingizga muvaffaqiyatli yuborildi!")
@@ -171,6 +172,131 @@ def admin_add_episode(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Xato! Format: `/addep 101 1` (Xatolik: {e})")
 
+# ----------------- ADMIN YANGI ANIME QO'SHISH -----------------
+# Rasmni caption bilan yuborish:
+# /addanime_db 202 | Naruto (1-fasl) | 26 | Yaponiya | O'ZBEK kino | 2002 | Ekshn, Sarguzasht | 15000 | @an1verseuz | Ta'rif
+
+@bot.message_handler(content_types=['photo'])
+def add_anime_to_database(message):
+    # Faqat admin ishlata oladi
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    # Rasm captioni bo'lmasa yoki /addanime_db bilan boshlanmasa
+    if not message.caption or not message.caption.startswith("/addanime_db"):
+        return
+
+    try:
+        # /addanime_db qismini olib tashlash
+        data = message.caption.replace("/addanime_db", "", 1).strip()
+
+        # | belgisi orqali ma'lumotlarni ajratish
+        parts = [x.strip() for x in data.split("|")]
+
+        # Kamida 10 ta ma'lumot bo'lishi kerak
+        if len(parts) < 10:
+            bot.reply_to(
+                message,
+                "❌ Format xato!\n\n"
+                "To'g'ri format:\n\n"
+                "/addanime_db KOD | NOMI | QISMLAR SONI | DAVLATI | TILI | YILI | JANRI | KO'RISHLAR | KANAL LINKI | TA'RIF"
+            )
+            return
+
+        code = parts[0]
+        title = parts[1]
+        episodes_count = int(parts[2])
+        country = parts[3]
+        language = parts[4]
+        year = parts[5]
+        genre = parts[6]
+        views = parts[7]
+        channel_link = parts[8]
+
+        # Oxirgi qism — ta'rif
+        # Hozircha bazaga saqlanmaydi
+        description = "|".join(parts[9:])
+
+        # Rasmning eng sifatli file_id'sini olish
+        photo_id = message.photo[-1].file_id
+
+        # SQLite bazaga ulanish
+        conn = sqlite3.connect("anime_bot.db")
+        cursor = conn.cursor()
+
+        # Shu kod oldin mavjudligini tekshirish
+        cursor.execute(
+            "SELECT code FROM animes WHERE code=?",
+            (code,)
+        )
+
+        if cursor.fetchone():
+            conn.close()
+
+            bot.reply_to(
+                message,
+                f"⚠️ {code} kodi bilan anime allaqachon bazada mavjud!"
+            )
+            return
+
+        # Anime ma'lumotlarini bazaga qo'shish
+        cursor.execute("""
+        INSERT INTO animes (
+            code,
+            title,
+            photo,
+            episodes_count,
+            country,
+            language,
+            year,
+            genre,
+            views,
+            channel_link
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            code,
+            title,
+            photo_id,
+            episodes_count,
+            country,
+            language,
+            year,
+            genre,
+            views,
+            channel_link
+        ))
+
+        conn.commit()
+        conn.close()
+
+        # Admin uchun muvaffaqiyatli xabar
+        bot.reply_to(
+            message,
+            f"✅ Anime bazaga muvaffaqiyatli qo'shildi!\n\n"
+            f"🔑 Kod: {code}\n"
+            f"🎬 Nomi: {title}\n"
+            f"🎞 Qismlar: {episodes_count}\n"
+            f"🌍 Davlati: {country}\n"
+            f"🎞 Tili: {language}\n"
+            f"📅 Yili: {year}\n"
+            f"🎭 Janri: {genre}\n\n"
+            f"📝 Ta'rif qabul qilindi."
+        )
+
+    except ValueError:
+        bot.reply_to(
+            message,
+            "❌ Xatolik: Qismlar soni raqam bo'lishi kerak!\n\n"
+            "Masalan: 26"
+        )
+
+    except Exception as e:
+        bot.reply_to(
+            message,
+            f"❌ Anime qo'shishda xatolik yuz berdi:\n\n{e}"
+    )
+        
 # ----------------- QIDIRUV VA XABARLARNI QABUL QILISH -----------------
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
