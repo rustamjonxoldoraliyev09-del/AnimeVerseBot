@@ -466,6 +466,8 @@ def admin_add_episode(message):
             message.reply_to_message.video.file_id
         )
 
+        # ----------------- QISMNI BAZAGA SAQLASH -----------------
+
         conn = get_db()
         cursor = conn.cursor()
 
@@ -497,88 +499,92 @@ def admin_add_episode(message):
 
         conn.commit()
 
-cursor.close()
-conn.close()
+        cursor.close()
+        conn.close()
 
 
-# ----------------- KANALGA YANGI QISM POSTI -----------------
+        # ----------------- ANIME MA'LUMOTLARINI OLISH -----------------
 
-conn = get_db()
-cursor = conn.cursor()
+        conn = get_db()
+        cursor = conn.cursor()
 
-cursor.execute(
-    """
-    SELECT *
-    FROM animes
-    WHERE code = %s
-    """,
-    (anime_code,)
-)
+        cursor.execute(
+            """
+            SELECT *
+            FROM animes
+            WHERE code = %s
+            """,
+            (anime_code,)
+        )
 
-anime = cursor.fetchone()
+        anime = cursor.fetchone()
 
-cursor.close()
-conn.close()
-
-
-if anime:
-
-    # Hozir bazaga nechta qism yuklanganini hisoblash
-    uploaded_episodes = get_uploaded_episodes_count(
-        anime_code
-    )
-
-    # Kanal postining dizayni
-    channel_caption = (
-        f"⟢⟢⟢ {anime[1]} ⟢⟢⟢\n"
-        f"╭─ 🎞️ Qism  ─ {uploaded_episodes}/{anime[3]}\n"
-        f"├─ 🇺🇿 Til   ─ {anime[5]}\n"
-        f"├─ 🎭 Janr  ─ {anime[7]}\n"
-        f"╰─ 📢 Kanal ─ @an1verseuz"
-    )
-
-    bot_info = bot.get_me()
-
-    bot_link = (
-        f"tg://resolve?domain="
-        f"{bot_info.username}"
-        f"&start=anime{anime_code}"
-    )
-
-    channel_markup = types.InlineKeyboardMarkup()
-
-    btn_go_bot = types.InlineKeyboardButton(
-        text="✨ YUKLAB OLISH ✨",
-        url=bot_link
-    )
-
-    channel_markup.add(
-        btn_go_bot
-    )
-
-    # Kanalga yangi post yuborish
-    bot.send_photo(
-        chat_id=KANAL_ID,
-        photo=anime[2],
-        caption=channel_caption,
-        parse_mode="Markdown",
-        reply_markup=channel_markup
-    )
+        cursor.close()
+        conn.close()
 
 
-bot.reply_to(
-    message,
-    f"✅ Kod {anime_code}: "
-    f"{ep_num}-qism bazaga saqlandi!\n\n"
-    f"📢 Kanalga yangi post yuborildi!"
-)
+        # ----------------- KANALGA YANGI POST YUBORISH -----------------
+
+        if anime:
+
+            uploaded_episodes = get_uploaded_episodes_count(
+                anime_code
+            )
+
+            channel_caption = (
+                f"⟢⟢⟢ {anime[1]} ⟢⟢⟢\n"
+                f"╭─ 🎞️ Qism  ─ {uploaded_episodes}/{anime[3]}\n"
+                f"├─ 🇺🇿 Til   ─ {anime[5]}\n"
+                f"├─ 🎭 Janr  ─ {anime[7]}\n"
+                f"╰─ 📢 Kanal ─ @an1verseuz"
+            )
+
+            bot_info = bot.get_me()
+
+            bot_link = (
+                f"tg://resolve?domain="
+                f"{bot_info.username}"
+                f"&start=anime{anime_code}"
+            )
+
+            channel_markup = types.InlineKeyboardMarkup()
+
+            btn_go_bot = types.InlineKeyboardButton(
+                text="✨ YUKLAB OLISH ✨",
+                url=bot_link
+            )
+
+            channel_markup.add(
+                btn_go_bot
+            )
+
+            bot.send_photo(
+                chat_id=KANAL_ID,
+                photo=anime[2],
+                caption=channel_caption,
+                parse_mode="Markdown",
+                reply_markup=channel_markup
+            )
+
+
+        # ----------------- ADMIN'GA XABAR -----------------
+
+        bot.reply_to(
+            message,
+            f"✅ Kod {anime_code}: "
+            f"{ep_num}-qism bazaga saqlandi!\n\n"
+            f"📢 Kanalga yangi post yuborildi!"
+        )
+
 
     except Exception as e:
 
         bot.reply_to(
             message,
             f"❌ Xato yuz berdi:\n{e}"
-        )
+)
+
+    
 
 
 # ----------------- YANGI ANIME QO'SHISH -----------------
