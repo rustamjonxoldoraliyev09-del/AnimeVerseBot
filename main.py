@@ -74,11 +74,25 @@ def check_sub(user_id):
     except Exception:
         return False
 
-# Start komandasi va Majburiy obuna o'rnatilishi
+# ----------------- START KOMANDASI -----------------
 @bot.message_handler(commands=['start'])
 def start_command(message):
     user_id = message.from_user.id
-    
+
+    # /start dan keyingi parametrni olish
+    # Masalan: /start anime15
+    start_parameter = ""
+
+    if len(message.text.split()) > 1:
+        start_parameter = message.text.split()[1]
+
+    # Anime kodi
+    anime_code = None
+
+    if start_parameter.startswith("anime"):
+        anime_code = start_parameter.replace("anime", "", 1)
+
+    # Oddiy /start xabari
     start_text = (
         "Assalomu alaykum bizning botimizga xush kelibsiz!!! "
         "Tomosha qilish uchun Kodni... yozing... ✔️\n\n"
@@ -86,16 +100,50 @@ def start_command(message):
         "@An1verseuzb✔️\n\n"
         "Botdan to'liq foydalanish uchun homiy kanalga azo bo'ling!! ✔️"
     )
+
     bot.send_message(user_id, start_text)
-    
+
+    # Majburiy obunani tekshirish
     if check_sub(user_id):
-        show_search_menu(user_id)
+
+        # Agar kanal postidagi YUKLAB OLISH tugmasi orqali kelgan bo'lsa
+        if anime_code:
+            open_anime_after_subscription(user_id, anime_code)
+        else:
+            # Oddiy /start bosilgan
+            show_search_menu(user_id)
+
     else:
+        # Obuna bo'lmagan foydalanuvchi uchun tugmalar
         markup = types.InlineKeyboardMarkup()
+
         username_clean = KANAL_ID.replace('@', '')
-        markup.add(types.InlineKeyboardButton(text="An1Verse", url=f"tg://resolve?domain={username_clean}"))
-        markup.add(types.InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_subscription"))
-        bot.send_message(user_id, "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:", reply_markup=markup)
+
+        markup.add(
+            types.InlineKeyboardButton(
+                text="An1Verse",
+                url=f"tg://resolve?domain={username_clean}"
+            )
+        )
+
+        # Tekshirish tugmasida anime kodi saqlanadi
+        if anime_code:
+            check_data = f"check_subscription_{anime_code}"
+        else:
+            check_data = "check_subscription"
+
+        markup.add(
+            types.InlineKeyboardButton(
+                text="✅ Tekshirish",
+                callback_data=check_data
+            )
+        )
+
+        bot.send_message(
+            user_id,
+            "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:",
+            reply_markup=markup
+    )
 @bot.callback_query_handler(func=lambda call: call.data == "check_subscription")
 def check_callback(call):
     user_id = call.from_user.id
