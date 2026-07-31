@@ -400,7 +400,7 @@ def admin_add_anime_to_channel(message):
         )
 
         btn_go_bot = types.InlineKeyboardButton(
-            text="YUKLAB OLISH 📥",
+            text="✨YUKLAB OLISH✨",
             url=bot_link
         )
 
