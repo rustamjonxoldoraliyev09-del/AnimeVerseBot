@@ -144,14 +144,58 @@ def start_command(message):
             "🛑 Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:",
             reply_markup=markup
     )
-@bot.callback_query_handler(func=lambda call: call.data == "check_subscription")
+# ----------------- MAJBURIY OBUNANI QAYTA TEKSHIRISH -----------------
+@bot.callback_query_handler(
+    func=lambda call: call.data == "check_subscription"
+    or call.data.startswith("check_subscription_")
+)
 def check_callback(call):
+
     user_id = call.from_user.id
+
+    # Anime kodini callback ichidan olish
+    anime_code = None
+
+    if call.data.startswith("check_subscription_"):
+        anime_code = call.data.replace(
+            "check_subscription_",
+            "",
+            1
+        )
+
+    # Obunani tekshirish
     if check_sub(user_id):
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-        show_search_menu(user_id)
+
+        # Eski obuna xabarini o'chirish
+        try:
+            bot.delete_message(
+                call.message.chat.id,
+                call.message.message_id
+            )
+        except Exception:
+            pass
+
+        # Agar YUKLAB OLISH tugmasi orqali kelgan bo'lsa
+        if anime_code:
+            open_anime_after_subscription(
+                user_id,
+                anime_code
+            )
+        else:
+            # Oddiy tekshirish
+            show_search_menu(user_id)
+
+        bot.answer_callback_query(
+            call.id,
+            "✅ Obuna tasdiqlandi!"
+        )
+
     else:
-        bot.answer_callback_query(call.id, "❌ Siz hali kanalga a'zo bo'lmadingiz!", show_alert=True)
+        bot.answer_callback_query(
+            call.id,
+            "❌ Siz hali kanalga a'zo bo'lmagansiz!",
+            show_alert=True
+    )
 def show_search_menu(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("🔍 Anime qidirish"))
