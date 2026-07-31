@@ -89,6 +89,29 @@ def get_episodes_grid(anime_code, total_episodes):
     return markup
 
 
+# ----------------- YUKLANGAN QISMLAR SONINI ANIQLASH -----------------
+
+def get_uploaded_episodes_count(anime_code):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM episodes
+        WHERE anime_code = %s
+        """,
+        (anime_code,)
+    )
+
+    count = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    return count
+
+
 # ----------------- MAJBURIY OBUNANI TEKSHIRISH -----------------
 
 def check_sub(user_id):
@@ -268,9 +291,12 @@ def open_anime_after_subscription(
 
         return
 
+    # Bazaga yuklangan qismlar sonini olish
+    uploaded_episodes = get_uploaded_episodes_count(anime_code)
+
     caption = (
         f"🎬 **Nomi:** {anime[1]}\n\n"
-        f"🥷 **Qismi:** 0/{anime[3]}\n"
+        f"🥷 **Qismi:** {uploaded_episodes}/{anime[3]}\n"
         f"🌍 **Davlati:** {anime[4]}\n"
         f"🎞 **Tili:** {anime[5]}\n"
         f"📅 **Yili:** {anime[6]}\n"
@@ -351,9 +377,12 @@ def admin_add_anime_to_channel(message):
 
         bot_info = bot.get_me()
 
+        # Bazaga yuklangan qismlar sonini olish
+        uploaded_episodes = get_uploaded_episodes_count(anime_id)
+
         channel_caption = (
             f"🎬 **Nomi:** {anime[1]}\n\n"
-            f"🥷 **Qismi:** 24/{anime[3]}\n"
+            f"🥷 **Qismi:** {uploaded_episodes}/{anime[3]}\n"
             f"🌍 **Davlati:** {anime[4]}\n"
             f"🎞 **Tili:** {anime[5]}\n"
             f"📅 **Yili:** {anime[6]}\n"
@@ -702,9 +731,12 @@ def handle_messages(message):
 
     if anime:
 
+        # Bazaga yuklangan qismlar sonini olish
+        uploaded_episodes = get_uploaded_episodes_count(code)
+
         caption = (
             f"🎬 **Nomi:** {anime[1]}\n\n"
-            f"🥷 **Qismi:** 0/{anime[3]}\n"
+            f"🥷 **Qismi:** {uploaded_episodes}/{anime[3]}\n"
             f"🌍 **Davlati:** {anime[4]}\n"
             f"🎞 **Tili:** {anime[5]}\n"
             f"📅 **Yili:** {anime[6]}\n"
