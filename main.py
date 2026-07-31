@@ -196,6 +196,54 @@ def check_callback(call):
             "❌ Siz hali kanalga a'zo bo'lmagansiz!",
             show_alert=True
     )
+# ----------------- ANIMENI KOD BO'YICHA OCHISH -----------------
+def open_anime_after_subscription(user_id, anime_code):
+
+    conn = sqlite3.connect("anime_bot.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT * FROM animes WHERE code=?",
+        (anime_code,)
+    )
+
+    anime = cursor.fetchone()
+
+    conn.close()
+
+    if not anime:
+        bot.send_message(
+            user_id,
+            "❌ Bunday kodli anime topilmadi."
+        )
+        return
+
+    # Anime ma'lumotlari
+    caption = (
+        f"🎬 **Nomi:** {anime[1]}\n\n"
+        f"🥷 **Qismi:** 0/{anime[3]}\n"
+        f"🌍 **Davlati:** {anime[4]}\n"
+        f"🎞 **Tili:** {anime[5]}\n"
+        f"📅 **Yili:** {anime[6]}\n"
+        f"🎭 **Janri:** {anime[7]}\n\n"
+        f"🔍 **Qidirishlar soni:** {anime[8]}\n\n"
+        f"🍿 {anime[9]}"
+    )
+
+    # Qismlar tugmalari
+    markup = get_episodes_grid(
+        anime_code,
+        anime[3]
+    )
+
+    # Anime kartasini yuborish
+    bot.send_photo(
+        chat_id=user_id,
+        photo=anime[2],
+        caption=caption,
+        parse_mode="Markdown",
+        reply_markup=markup
+    )        
 def show_search_menu(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("🔍 Anime qidirish"))
