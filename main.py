@@ -8,12 +8,9 @@ from threading import Thread
 
 # ----------------- SOZLAMALAR -----------------
 
-TOKEN = os.getenv("8806794822:AAGqreBWLhGnwhaKrZQoN2sNqFqq48Z86mU")
+TOKEN = "8806794822:AAGqreBWLhGnwhaKrZQoN2sNqFqq48Z86mU"
 KANAL_ID = "@an1verseuz"
 ADMIN_ID = 8370334471
-
-if not TOKEN:
-    raise ValueError("BOT_TOKEN Environment Variable topilmadi!")
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
