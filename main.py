@@ -139,7 +139,7 @@ def admin_add_anime_to_channel(message):
         )
         
         channel_markup = types.InlineKeyboardMarkup()
-        bot_link = f"https://t.me{bot_info.username}?start=anime{anime_id}"
+        bot_link = f"tg://resolve?domain={bot_info.username}&start=anime{anime_id}"
         btn_go_bot = types.InlineKeyboardButton(text="YUKLAB OLISH 📥", url=bot_link)
         channel_markup.add(btn_go_bot)
         
