@@ -297,12 +297,10 @@ def open_anime_after_subscription(
     caption = (
         f"🎬 **Nomi:** {anime[1]}\n\n"
         f"🥷 **Qismi:** {uploaded_episodes}/{anime[3]}\n"
-        f"🌍 **Davlati:** {anime[4]}\n"
-        f"🎞 **Tili:** {anime[5]}\n"
-        f"📅 **Yili:** {anime[6]}\n"
-        f"🎭 **Janri:** {anime[7]}\n\n"
-        f"🔍 **Qidirishlar soni:** {anime[8]}\n\n"
-        f"🍿 {anime[9]}"
+        f"🎞 **Tili:** {anime[4]}\n"
+        f"📅 **Yili:** {anime[5]}\n"
+        f"🎭 **Janri:** {anime[6]}\n\n"
+        f"🍿 {anime[7]}"
     )
 
     markup = get_episodes_grid(
@@ -616,13 +614,16 @@ def add_anime_to_database(message):
             for x in data.split("|")
         ]
 
-        if len(parts) < 10:
+        # Yangi format:
+        # KOD | NOMI | QISMLAR SONI | TILI | YILI | JANRI | KANAL LINKI | TA'RIF
+
+        if len(parts) < 8:
 
             bot.reply_to(
                 message,
                 "❌ Format xato!\n\n"
                 "To'g'ri format:\n\n"
-                "/addanime_db KOD | NOMI | QISMLAR SONI | DAVLATI | TILI | YILI | JANRI | KO'RISHLAR | KANAL LINKI | TA'RIF"
+                "/addanime_db KOD | NOMI | QISMLAR SONI | TILI | YILI | JANRI | KANAL LINKI | TA'RIF"
             )
 
             return
@@ -634,16 +635,18 @@ def add_anime_to_database(message):
             parts[2]
         )
 
-        country = parts[3]
-        language = parts[4]
-        year = parts[5]
-        genre = parts[6]
-        views = parts[7]
-        channel_link = parts[8]
+        language = parts[3]
+        year = parts[4]
+        genre = parts[5]
+        channel_link = parts[6]
 
         description = "|".join(
-            parts[9:]
+            parts[7:]
         )
+
+        # Davlati va ko'rishlar soni endi ishlatilmaydi
+        country = ""
+        views = ""
 
         photo_id = (
             message.photo[-1].file_id
@@ -653,6 +656,7 @@ def add_anime_to_database(message):
         cursor = conn.cursor()
 
         # Kod mavjudligini tekshirish
+
         cursor.execute(
             """
             SELECT code
@@ -669,12 +673,14 @@ def add_anime_to_database(message):
 
             bot.reply_to(
                 message,
-                f"⚠️ {code} kodi bilan anime allaqachon bazada mavjud!"
+                f"⚠️ {code} kodi bilan anime "
+                f"allaqachon bazada mavjud!"
             )
 
             return
 
         # Anime qo'shish
+
         cursor.execute(
             """
             INSERT INTO animes
@@ -729,10 +735,10 @@ def add_anime_to_database(message):
             f"🔑 Kod: {code}\n"
             f"🎬 Nomi: {title}\n"
             f"🎞 Qismlar: {episodes_count}\n"
-            f"🌍 Davlati: {country}\n"
             f"🎞 Tili: {language}\n"
             f"📅 Yili: {year}\n"
-            f"🎭 Janri: {genre}\n\n"
+            f"🎭 Janri: {genre}\n"
+            f"📢 Kanal: {channel_link}\n\n"
             f"📝 Ta'rif qabul qilindi."
         )
 
@@ -740,15 +746,17 @@ def add_anime_to_database(message):
 
         bot.reply_to(
             message,
-            "❌ Xatolik: Qismlar soni raqam bo'lishi kerak!\n\n"
-            "Masalan: 26"
+            "❌ Xatolik: Qismlar soni raqam "
+            "bo'lishi kerak!\n\n"
+            "Masalan: 12"
         )
 
     except Exception as e:
 
         bot.reply_to(
             message,
-            f"❌ Anime qo'shishda xatolik yuz berdi:\n\n{e}"
+            f"❌ Anime qo'shishda xatolik yuz berdi:\n\n"
+            f"{e}"
         )
 
 
