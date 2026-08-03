@@ -463,107 +463,6 @@ def admin_add_episode(message):
         video_id = (
             message.reply_to_message.video.file_id
         )
-# ----------------- EPIZODNI O'CHIRISH -----------------
-
-@bot.message_handler(commands=["deleteanime"])
-def admin_delete_episode(message):
-
-    if message.from_user.id != ADMIN_ID:
-        return
-
-    try:
-
-        args = message.text.split()
-
-        if len(args) < 3:
-
-            bot.reply_to(
-                message,
-                "⚠️ Format:\n"
-                "/deleteanime KOD QISM\n\n"
-                "Masalan:\n"
-                "/deleteanime 2 5"
-            )
-
-            return
-
-        anime_code = args[1]
-        ep_num = int(args[2])
-
-        conn = get_db()
-        cursor = conn.cursor()
-
-        # Avval shu qism mavjudligini tekshirish
-
-        cursor.execute(
-            """
-            SELECT id
-            FROM episodes
-            WHERE anime_code = %s
-            AND episode_number = %s
-            """,
-            (
-                anime_code,
-                ep_num
-            )
-        )
-
-        episode = cursor.fetchone()
-
-        if not episode:
-
-            cursor.close()
-            conn.close()
-
-            bot.reply_to(
-                message,
-                f"❌ {anime_code}-kodli animening "
-                f"{ep_num}-qismi bazada topilmadi!"
-            )
-
-            return
-
-        # Qismni o'chirish
-
-        cursor.execute(
-            """
-            DELETE FROM episodes
-            WHERE anime_code = %s
-            AND episode_number = %s
-            """,
-            (
-                anime_code,
-                ep_num
-            )
-        )
-
-        conn.commit()
-
-        cursor.close()
-        conn.close()
-
-        bot.reply_to(
-            message,
-            f"✅ {anime_code}-kodli animening "
-            f"{ep_num}-qismi muvaffaqiyatli o'chirildi!"
-        )
-
-    except ValueError:
-
-        bot.reply_to(
-            message,
-            "❌ Qism raqami raqam bo'lishi kerak!\n\n"
-            "Masalan:\n"
-            "/deleteanime 2 5"
-        )
-
-    except Exception as e:
-
-        bot.reply_to(
-            message,
-            f"❌ Qismni o'chirishda xatolik yuz berdi:\n\n"
-            f"{e}"
-        )
 
         # ----------------- QISMNI BAZAGA SAQLASH -----------------
 
@@ -684,7 +583,107 @@ def admin_delete_episode(message):
 )
 
     
+# ----------------- EPIZODNI O'CHIRISH -----------------
 
+@bot.message_handler(commands=["deleteanime"])
+def admin_delete_episode(message):
+
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    try:
+
+        args = message.text.split()
+
+        if len(args) < 3:
+
+            bot.reply_to(
+                message,
+                "⚠️ Format:\n"
+                "/deleteanime KOD QISM\n\n"
+                "Masalan:\n"
+                "/deleteanime 2 5"
+            )
+
+            return
+
+        anime_code = args[1]
+        ep_num = int(args[2])
+
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Avval shu qism mavjudligini tekshirish
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM episodes
+            WHERE anime_code = %s
+            AND episode_number = %s
+            """,
+            (
+                anime_code,
+                ep_num
+            )
+        )
+
+        episode = cursor.fetchone()
+
+        if not episode:
+
+            cursor.close()
+            conn.close()
+
+            bot.reply_to(
+                message,
+                f"❌ {anime_code}-kodli animening "
+                f"{ep_num}-qismi bazada topilmadi!"
+            )
+
+            return
+
+        # Qismni o'chirish
+
+        cursor.execute(
+            """
+            DELETE FROM episodes
+            WHERE anime_code = %s
+            AND episode_number = %s
+            """,
+            (
+                anime_code,
+                ep_num
+            )
+        )
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        bot.reply_to(
+            message,
+            f"✅ {anime_code}-kodli animening "
+            f"{ep_num}-qismi muvaffaqiyatli o'chirildi!"
+        )
+
+    except ValueError:
+
+        bot.reply_to(
+            message,
+            "❌ Qism raqami raqam bo'lishi kerak!\n\n"
+            "Masalan:\n"
+            "/deleteanime 2 5"
+        )
+
+    except Exception as e:
+
+        bot.reply_to(
+            message,
+            f"❌ Qismni o'chirishda xatolik yuz berdi:\n\n"
+            f"{e}"
+        )
 
 # ----------------- YANGI ANIME QO'SHISH -----------------
 
