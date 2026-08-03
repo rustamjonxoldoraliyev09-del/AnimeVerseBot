@@ -523,7 +523,7 @@ def admin_add_episode(message):
 
         # ----------------- KANALGA YANGI POST YUBORISH -----------------
 
-        if anime:
+        if anime and int(anime_code) >= 100:
 
             uploaded_episodes = get_uploaded_episodes_count(
                 anime_code
