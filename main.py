@@ -423,6 +423,46 @@ def admin_add_anime_to_channel(message):
             f"❌ Kod {anime_id} bo'yicha anime bazada topilmadi!"
         )
 
+# ----------------- ANIMELAR RO'YXATI -----------------
+
+@bot.message_handler(commands=["listanime"])
+def list_animes(message):
+
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT code, title
+        FROM animes
+        ORDER BY CAST(code AS INTEGER) ASC
+        """
+    )
+
+    animes = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    if not animes:
+        bot.reply_to(
+            message,
+            "📚 Hozircha bazada anime mavjud emas."
+        )
+        return
+
+    text = "📚 ANIMELAR RO‘YXATI\n\n"
+
+    for code, title in animes:
+        text += f"{code} — {title}\n"
+
+    bot.reply_to(
+        message,
+        text
+)
 
 # ----------------- EPIZOD QO'SHISH -----------------
 
